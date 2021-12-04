@@ -79,9 +79,12 @@ int part2(FILE *in)
 
     int lastIndex = 0;
     for (int j = 1; j < BOARD_COUNT; j++)
+    {
+        if (!boards[j].won)
+            fprintf(stderr, "Board %d didn't win at all! What if the squid chose this one?\n", j);
         if (boards[j].won > boards[lastIndex].won)
             lastIndex = j;
-    printf("The last board to win was board %d after round %d\n", lastIndex, boards[lastIndex].won);
+    }
     return getScore(boards[lastIndex]);;
 }
 
