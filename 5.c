@@ -68,15 +68,8 @@ int part2(FILE *in)
 Line *getLines(FILE *in, Line *buff)
 {
     for (int i = 0; i < LINE_COUNT; i++)
-    {
         fscanf(in, "%d,%d -> %d,%d", &buff[i].x1, &buff[i].y1, &buff[i].x2, &buff[i].y2) == 4 ||
             fprintf(stderr, "Couldn't parse line\n");
-        if (buff[i].x1 >= GRID_SIZE ||
-                buff[i].x2 >= GRID_SIZE ||
-                buff[i].y1 >= GRID_SIZE ||
-                buff[i].y2 >= GRID_SIZE)
-            fprintf(stderr, "Out of bounds!\n");
-    }
     return buff;
 }
 
@@ -93,15 +86,5 @@ void draw(Line line, int *grid, int includingDiagonal)
     int yInc = (line.y2 - line.y1) / diff;
     for (int d = 0; d <= diff; d++)
         GET(grid, line.x1 + d * xInc, line.y1 + d * yInc)++;
-}
-
-void printGrid(int *grid)
-{
-    for (int y = 0; y < GRID_SIZE; y++)
-    {
-        for (int x = 0; x < GRID_SIZE; x++)
-            printf("%d", GET(grid, x, y));
-        printf("\n");
-    }
 }
 
