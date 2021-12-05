@@ -76,47 +76,23 @@ Line *getLines(FILE *in, Line *buff)
                 buff[i].y1 >= GRID_SIZE ||
                 buff[i].y2 >= GRID_SIZE)
             fprintf(stderr, "Out of bounds!\n");
-        if (buff[i].x1 == buff[i].x2 && buff[i].y1 > buff[i].y2)
-        {
-            int swp = buff[i].y1;
-            buff[i].y1 = buff[i].y2;
-            buff[i].y2 = swp;
-        }
-        else if (buff[i].y1 == buff[i].y2 && buff[i].x1 > buff[i].x2)
-        {
-            int swp = buff[i].x1;
-            buff[i].x1 = buff[i].x2;
-            buff[i].x2 = swp;
-        }
-        else if (buff[i].x1 > buff[i].x2)
-        {
-            // Lines should always be left to right
-            int swp = buff[i].x1;
-            buff[i].x1 = buff[i].x2;
-            buff[i].x2 = swp;
-
-            swp = buff[i].y1;
-            buff[i].y1 = buff[i].y2;
-            buff[i].y2 = swp;
-        }
     }
     return buff;
 }
 
+static int max(int a, int b)
+{
+    return a > b ? a : b;
+}
 void draw(Line line, int *grid, int includingDiagonal)
 {
-    // Vertical
-    if (line.x1 == line.x2)
-        for (int y = line.y1; y <= line.y2; y++)
-            GET(grid, line.x1, y)++;
-    // Horizontal
-    else if (line.y1 == line.y2)
-        for (int x = line.x1; x <= line.x2; x++)
-            GET(grid, x, line.y1)++;
-    // Diagonal
-    else if (includingDiagonal)
-        for (int d = 0; line.x1 + d <= line.x2; d++)
-            GET(grid, line.x1+d, line.y2 > line.y1 ? line.y1 + d : line.y1 - d)++;
+    if (!includingDiagonal && line.x1 != line.x2 && line.y1 != line.y2)
+        return;
+    int diff = max(abs(line.x2-line.x1), abs(line.y2-line.y1));
+    int xInc = (line.x2 - line.x1) / diff;
+    int yInc = (line.y2 - line.y1) / diff;
+    for (int d = 0; d <= diff; d++)
+        GET(grid, line.x1 + d * xInc, line.y1 + d * yInc)++;
 }
 
 void printGrid(int *grid)
