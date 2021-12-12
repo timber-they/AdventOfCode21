@@ -5,8 +5,12 @@
 #include <math.h>
 
 #define LETTERS 26
+#define TUNNELS 25
 
 #define GET(matrix,x,y) ((matrix)[(x) + (y)*(LETTERS)*(LETTERS)])
+
+int allCaves[TUNNELS] = {0};
+int caveCount = 0;
 
 int part1(FILE *in);
 int part2(FILE *in);
@@ -50,6 +54,7 @@ int *readPathMatrix(FILE *in, int *buff, int *caves)
 {
     char a[7];
     char b[7];
+    int caveIndex = 0;
     while (fscanf(in, "%[^-]-%s\n", a, b) == 2)
     {
         int keyA = getKey(a);
@@ -59,7 +64,20 @@ int *readPathMatrix(FILE *in, int *buff, int *caves)
 
         caves[keyA] = a[0] >= 'A' && a[0] <= 'Z' ? 3 : 2;
         caves[keyB] = b[0] >= 'A' && b[0] <= 'Z' ? 3 : 2;
+
+        int i;
+        for (i = 0; i < caveIndex; i++)
+            if (allCaves[i] == keyA)
+                break;
+        if (i == caveIndex)
+            allCaves[caveIndex++] = keyA;
+        for (i = 0; i < caveIndex; i++)
+            if (allCaves[i] == keyB)
+                break;
+        if (i == caveIndex)
+            allCaves[caveIndex++] = keyB;
     }
+    caveCount = caveIndex;
     return buff;
 }
 
@@ -84,9 +102,12 @@ int countPaths(int currentCave, int *caves, int *pathMatrix)
         return 0;
     caves[currentCave] = caves[currentCave] == 3 ? 3 : 0;
     int res = 0;
-    for (int i = 0; i < LETTERS * LETTERS; i++)
-        if (caves[i] && i != currentCave && GET(pathMatrix, currentCave, i))
-            res += countPaths(i, caves, pathMatrix);
+    for (int i = 0; i < caveCount; i++)
+    {
+        int cave = allCaves[i];
+        if (caves[cave] && cave != currentCave && GET(pathMatrix, currentCave, cave))
+            res += countPaths(cave, caves, pathMatrix);
+    }
     caves[currentCave] = caves[currentCave] ? 3 : 2;
     return res;
 }
@@ -107,11 +128,12 @@ int countPaths2(int currentCave, int *caves, int *pathMatrix, int visittedTwice)
         caves[currentCave] = caves[currentCave] == 2 ? 1 : 3;
 
     int res = 0;
-    for (int i = 0; i < LETTERS * LETTERS; i++)
-        if (i != currentCave && GET(pathMatrix, currentCave, i))
-        {
-            res += countPaths2(i, caves, pathMatrix, visittedTwice);
-        }
+    for (int i = 0; i < caveCount; i++)
+    {
+        int cave = allCaves[i];
+        if (cave != currentCave && GET(pathMatrix, currentCave, cave))
+            res += countPaths2(cave, caves, pathMatrix, visittedTwice);
+    }
     caves[currentCave] = prev;
     return res;
 }
