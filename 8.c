@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 #include <math.h>
+#include <time.h>
 
 // 7!
 #define POSSIBLE_COMBINATIONS 5040
@@ -55,6 +56,7 @@ int segmentCounts[] =
 
 int main()
 {
+    clock_t tic = clock();
     FILE *in = fopen("in8", "r");
 
     printf("Part1: %d\n", part1(in));
@@ -62,6 +64,8 @@ int main()
     printf("Part2: %d\n", part2(in));
 
     fclose(in);
+    clock_t toc = clock();
+    printf("TIME: %lf seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
     return 0;
 }
 
