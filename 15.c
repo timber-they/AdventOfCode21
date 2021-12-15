@@ -84,7 +84,7 @@ int dijkstra(int *cave)
     int furthestVisittedX = 0, furthestVisittedY = 0;
     while(1)
     {
-        if (x < 0 || y < 0)
+        if (x < 0 || y < 0 || (x == SIZE-1 && y == SIZE-1))
             break;
         GET(visitted, x, y) = 1;
         if (x > furthestVisittedX)
@@ -104,20 +104,23 @@ int dijkstra(int *cave)
         // Find next node
         int min = 1<<30;
         int minX = -1, minY = -1;
-        for (y = 0; y <= furthestVisittedY+1 && y < SIZE; y++)
-            for (x = 0; x <= furthestVisittedX+1 && x < SIZE; x++)
-                if (y < 0 || x < 0)
-                    continue;
-                else if (!GET(visitted, x, y) && GET(distanceMap, x, y) < min)
+        // A bit arbitrary starting point, but it works
+        for (y = furthestVisittedY / 2 - 5; y <= furthestVisittedY+1 && y < SIZE; y++)
+        {
+            if (y < 0)
+                continue;
+            for (x = furthestVisittedX / 3 + y / 3 - 5; x <= furthestVisittedX+1 && x < SIZE; x++)
+                if (x >= 0 && !GET(visitted, x, y) && GET(distanceMap, x, y) <= min)
                 {
                     min = GET(distanceMap, x, y);
                     minX = x;
                     minY = y;
                 }
+        }
         x = minX;
         y = minY;
     }
-    int res =  GET(distanceMap, SIZE-1, SIZE-1);
+    int res = GET(distanceMap, SIZE-1, SIZE-1);
     free(distanceMap);
     free(visitted);
     return res;
