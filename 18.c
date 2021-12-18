@@ -74,7 +74,32 @@ int part1(FILE *in)
 
 int part2(FILE *in)
 {
-    return -2;
+    int maxMagnitude = 0;
+
+    for (int i = 0; i < NUMBERS; i++)
+    {
+        for (int j = 0; j < NUMBERS; j++)
+        {
+            Number buff[NUMBERS] = {0};
+            Number regularBuff[REGULAR] = {0};
+            Number reduceBuff[SPLITTING] = {0};
+            int reduceI = 0;
+            Number *numbers = read(in, regularBuff, buff);
+            rewind(in);
+
+            Number curr = add(numbers+i, numbers+j);
+            curr.left->parent = &curr;
+            curr.right->parent = &curr;
+            while (reduce(&curr, 0, reduceBuff, &reduceI, 0) ||
+                    reduce(&curr, 0, reduceBuff, &reduceI, 1))
+                ;
+            int mag = magnitude(&curr);
+            if (mag > maxMagnitude)
+                maxMagnitude = mag;
+        }
+    }
+
+    return maxMagnitude;
 }
 
 Number *readNumber(FILE *in, Number *buff)
