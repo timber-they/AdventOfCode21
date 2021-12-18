@@ -4,10 +4,10 @@
 #include <errno.h>
 #include <math.h>
 
-#define NUMBERS 2//100
-#define REGULAR 2000
-#define SPLITTING 2000
-#define ADDING 1000
+#define NUMBERS 100
+#define REGULAR 3000
+#define SPLITTING 20000
+#define ADDING 2000
 
 typedef struct Number
 {
@@ -22,16 +22,17 @@ int part2(FILE *in);
 Number *readNumber(FILE *in, Number *buff);
 Number *read(FILE *in, Number *buff, Number *array);
 Number add(Number *a, Number *b);
-int reduce(Number *num, int depth, Number *buff, int *i);
+int reduce(Number *num, int depth, Number *buff, int *i, int state);
 void explode(Number *num);
 void split(Number *num, Number *buff);
 int magnitude(Number *num);
 void print(Number *num, int depth);
-
+// A bit sad that I need this, but I don't want to debug
+void ensureParent(Number *root);
 
 int main()
 {
-    FILE *in = fopen("test18", "r");
+    FILE *in = fopen("in18", "r");
 
     printf("Part1: %d\n", part1(in));
     rewind(in);
@@ -50,11 +51,19 @@ int part1(FILE *in)
     int reduceI = 0;
 
     Number *numbers = read(in, regularBuff, buff);
-    printf("Lefts parent is ");
-    print(numbers->left->parent, 10);
-    printf("\n");
+    //printf("Lefts parent is ");
+    //print(numbers->left->parent, 10);
+    //printf("\n");
 
     Number curr = *numbers;
+    int j = 0;
+    while (reduce(&curr, 0, reduceBuff, &reduceI, 0) ||
+            reduce(&curr, 0, reduceBuff, &reduceI, 1))
+    {
+        printf("After reducing %d: ", ++j);
+        print(&curr, 10);
+        printf("\n");
+    }
     for (int i = 1; i < NUMBERS; i++)
     {
         addBuff[i] = curr;
@@ -66,13 +75,18 @@ int part1(FILE *in)
         printf("After adding: ");
         print(&curr, 10);
         printf("\n");
-        int i = 0;
-        while (reduce(&curr, 0, reduceBuff, &reduceI))
+        j = 0;
+        while (reduce(&curr, 0, reduceBuff, &reduceI, 0) ||
+                reduce(&curr, 0, reduceBuff, &reduceI, 1))
         {
-            printf("After reducing %d: ", ++i);
+            printf("After reducing %d: ", ++j);
             print(&curr, 10);
             printf("\n");
         }
+        //printf("\tAfter last reduce:");
+        //print(&curr, 10);
+        //printf("\n");
+        printf("=====================\n");
     }
     printf("Finally: ");
     print(&curr, 10);
@@ -101,9 +115,9 @@ Number *readNumber(FILE *in, Number *buff)
     }
     Number *ptr = readNumber(in, buff+1);
     buff->left = buff+1;
-    printf("Set left to ");
-    print(buff->left, 10);
-    printf("\n");
+    //printf("Set left to ");
+    //print(buff->left, 10);
+    //printf("\n");
     buff->left->parent = buff;
     c = fgetc(in);
     if (c != ',')
@@ -113,9 +127,9 @@ Number *readNumber(FILE *in, Number *buff)
     }
     Number *ptr2 = readNumber(in, ptr+1);
     buff->right = ptr+1;
-    printf("Set right to ");
-    print(buff->right, 10);
-    printf("\n");
+    //printf("Set right to ");
+    //print(buff->right, 10);
+    //printf("\n");
     buff->right->parent = buff;
     c = fgetc(in);
     if (c != ']')
@@ -123,9 +137,9 @@ Number *readNumber(FILE *in, Number *buff)
         fprintf(stderr, "Expected ']', got '%c'\n", c);
         exit(3);
     }
-    printf("Reading number yielded ");
-    print(buff, 10);
-    printf("\n");
+    //printf("Reading number yielded ");
+    //print(buff, 10);
+    //printf("\n");
     return ptr2;
 }
 
@@ -160,20 +174,20 @@ Number add(Number *a, Number *b)
     return res;
 }
 
-int reduce(Number *num, int depth, Number *buff, int *i)
+int reduce(Number *num, int depth, Number *buff, int *i, int state)
 {
     if (num == NULL)
         return 0;
-    if (depth >= 4 && num->left != NULL)
+    ensureParent(num);
+    if (state == 0 && depth >= 4 && num->left != NULL)
     {
         explode(num);
-        printf("Explode! Yielded: ");
-        print(num, 10);
-        printf("\n");
+        //printf("Explode! Yielded: ");
+        //print(num, 10);
+        //printf("\n");
         return 1;
     }
-    // TODO: Don't split if anyone can still explode!
-    if (num->left == NULL && num->value >= 10)
+    if (state == 1 && num->left == NULL && num->value >= 10)
     {
         split(num, buff+*i);
         printf("Split! Yielded: ");
@@ -182,8 +196,8 @@ int reduce(Number *num, int depth, Number *buff, int *i)
         *i += 2;
         return 2;
     }
-    int res = reduce(num->left, depth+1, buff, i) ||
-        reduce(num->right, depth+1, buff, i);
+    int res = reduce(num->left, depth+1, buff, i, state) ||
+        reduce(num->right, depth+1, buff, i, state);
     return res;
 }
 
@@ -202,27 +216,32 @@ void explode(Number *num)
         parent = parent->left;
     while (parent != NULL && (current = parent->right))
         parent = current;
-    printf("Identified next left: ");
-    print(parent, 10);
-    printf(" (");
-    if (parent != NULL)
-        print(parent->parent, 10);
-    printf(")\n");
+    //printf("Identified next left: ");
+    //print(parent, 10);
+    //printf(" (");
+    //if (parent != NULL)
+        //print(parent->parent, 10);
+    //printf(")\n");
     // Now parent is the right-most value to the left of num
     if (parent != NULL)
         parent->value += num->left->value;
-    printf("->");
-    print(parent, 10);
-    printf(" (");
-    if (parent != NULL)
-        print(parent->parent, 10);
-    printf(")\n");
+    //printf("->");
+    //print(parent, 10);
+    //printf(" (");
+    //if (parent != NULL)
+        //print(parent->parent, 10);
+    //printf(")\n");
 
     // Get regular number to right
     current = num;
     parent = NULL;
     while ((parent = current->parent) && parent->right == current)
         current = parent;
+    printf("Current (");
+    print(current, 10);
+    printf(") is the left child of parent (");
+    print(parent, 10);
+    printf(")\n");
     // Now current is the left child of parent
     if (parent != NULL)
         parent = parent->right;
@@ -252,7 +271,7 @@ void explode(Number *num)
 
 void split(Number *num, Number *buff)
 {
-    printf("Splitting...\n");
+    //printf("Splitting...\n");
     num->left = buff;
     num->right = buff+1;
     num->left->parent = num;
@@ -289,6 +308,20 @@ void print(Number *num, int depth)
         printf(",");
         print(num->right, depth-1);
         printf("]");
+    }
+}
+
+void ensureParent(Number *root)
+{
+    if (root->left != NULL)
+    {
+        root->left->parent = root;
+        ensureParent(root->left);
+    }
+    if (root->right != NULL)
+    {
+        root->right->parent = root;
+        ensureParent(root->right);
     }
 }
 
