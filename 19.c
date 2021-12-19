@@ -4,9 +4,9 @@
 #include <errno.h>
 #include <math.h>
 
-#define SCANNERS 5//35
+#define SCANNERS 35
 // Each scanner sees 25 or 26 beacons
-#define BEACONS 26
+#define BEACONS 27
 #define MIN_MATCH 12
 
 typedef struct
@@ -32,11 +32,13 @@ void shift(Scanner s, Beacon diff);
 int countIdentical(Scanner a, Scanner b);
 void alignAll(Scanner *scanners);
 int count(Scanner *scanners);
+int manhattan(Scanner *scanners);
+int dist(Beacon a, Beacon b);
 void print(Scanner scanner, int size);
 
 int main()
 {
-    FILE *in = fopen("test19", "r");
+    FILE *in = fopen("in19", "r");
 
     printf("Part1: %d\n", part1(in));
     rewind(in);
@@ -54,20 +56,20 @@ int part1(FILE *in)
         buff[i] = &beacons[i * BEACONS];
 
     Scanner *scanners = read(in, buff);
-    for (int i = 0; i < SCANNERS; i++)
-    {
-        printf("Scanner %d:\n", i);
-        print(scanners[i], 9);
-    }
-    printf("Read\n");
     alignAll(scanners);
-    printf("Aligned\n");
     return count(scanners);
 }
 
 int part2(FILE *in)
 {
-    return -2;
+    Beacon beacons[BEACONS * SCANNERS] = {0};
+    Scanner buff[SCANNERS] = {0};
+    for (int i = 0; i < SCANNERS; i++)
+        buff[i] = &beacons[i * BEACONS];
+
+    Scanner *scanners = read(in, buff);
+    alignAll(scanners);
+    return manhattan(scanners);
 }
 
 Scanner *read(FILE *in, Scanner *buff)
@@ -94,7 +96,6 @@ Scanner *read(FILE *in, Scanner *buff)
             beacon = 0;
             continue;
         }
-        printf("i=%d, scanner=%d, beacon=%d\n", i, scanner, beacon);
         if (sscanf(line, "%d,%d,%d", 
                     &buff[scanner][beacon].x,
                     &buff[scanner][beacon].y,
@@ -117,18 +118,10 @@ int matches(Scanner a, Scanner b)
     {
         if (!a[i].active)
             continue;
-        //int shouldMatch = 0;
-        /*if (a[i].x == -618 && a[i].y == -824 && a[i].z == -621)
-            shouldMatch = 1;*/
         for (int j = 0; j < BEACONS; j++)
         {
             if (!b[j].active)
                 continue;
-            /*if (shouldMatch && (b[j].x == 686 || b[j].x == -686 ||
-                    b[j].y == 686 || b[j].y == -686 ||
-                    b[j].z == 686 || b[j].z == -686))
-                printf("This should match! (%d,%d,%d)\n",
-                        b[j].x, b[j].y, b[j].z);*/
             Beacon diff = subtract(a[i], b[j]);
             shift(b, diff);
             if (countIdentical(a, b) >= MIN_MATCH)
@@ -149,6 +142,7 @@ Beacon subtract(Beacon a, Beacon b)
         a.x - b.x,
         a.y - b.y,
         a.z - b.z,
+        a.active,
     };
 }
 
@@ -159,17 +153,14 @@ Beacon add(Beacon a, Beacon b)
         a.x + b.x,
         a.y + b.y,
         a.z + b.z,
+        a.active,
     };
 }
 
 void shift(Scanner s, Beacon diff)
 {
     for (int i = 0; i < BEACONS; i++)
-    {
-        if (s[i].x == 0 && s[i].y == 0 && s[i].z == 0)
-            continue;
         s[i] = add(s[i], diff);
-    }
 }
 
 int countIdentical(Scanner a, Scanner b)
@@ -196,158 +187,148 @@ static int areMatchableByRotation(Scanner a, Scanner b)
     // xyz
     if (matches(a, b))
         return 1;
-    // xzy
-    for (int i = 0; i < BEACONS; i++)
-    {
-        /*if (b[i].x == 686 || b[i].x == -686 ||
-                b[i].y == 686 || b[i].y == -686 ||
-                b[i].z == 686 || b[i].z == -686)
-            printf("Are matchable by rotation? (%d,%d,%d) -> (%d,%d,%d)\n",
-                    b[i].x, b[i].y, b[i].z,
-                    b[i].x + 618, b[i].y + 824, b[i].z + 621);*/
-        if (!b[i].active)
-            continue;
-        int x = b[i].x;
-        int y = b[i].y;
-        int z = b[i].z;
-        b[i].x = x;
-        b[i].y = z;
-        b[i].z = y;
-    }
-    if (matches(a, b))
-        return 2;
     // yzx
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
         int x = b[i].x;
-        int z = b[i].y;
-        int y = b[i].z;
+        int y = b[i].y;
+        int z = b[i].z;
         b[i].x = y;
         b[i].y = z;
         b[i].z = x;
     }
     if (matches(a, b))
-        return 3;
-    // yxz
-    for (int i = 0; i < BEACONS; i++)
-    {
-        if (!b[i].active)
-            continue;
-        int y = b[i].x;
-        int z = b[i].y;
-        int x = b[i].z;
-        b[i].x = y;
-        b[i].y = x;
-        b[i].z = z;
-    }
-    if (matches(a, b))
-        return 4;
+        return 2;
     // zxy
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
         int y = b[i].x;
-        int x = b[i].y;
-        int z = b[i].z;
+        int z = b[i].y;
+        int x = b[i].z;
         b[i].x = z;
         b[i].y = x;
         b[i].z = y;
     }
     if (matches(a, b))
-        return 5;
-    // zyx
+        return 3;
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
         int z = b[i].x;
         int x = b[i].y;
         int y = b[i].z;
-        b[i].x = z;
+        b[i].x = x;
         b[i].y = y;
-        b[i].z = x;
+        b[i].z = z;
     }
-    if (matches(a, b))
-        return 6;
     return 0;
 }
 int areMatchable(Scanner a, Scanner b)
 {
-    // That's 48 transformations (instead of 24), so I probably
-    //  have every mutation twice, but who cares
-    // +++
-    if (areMatchableByRotation(a, b))
-        return 1;
-    // ++-
+    // zxy
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
-        b[i].z = -b[i].z;
+        int x = b[i].x;
+        int y = b[i].y;
+        int z = b[i].z;
+        b[i].x = z;
+        b[i].y = x;
+        b[i].z = y;
+    }
+    if (areMatchableByRotation(a, b))
+        return 1;
+    // z-yx
+    for (int i = 0; i < BEACONS; i++)
+    {
+        int z = b[i].x;
+        int x = b[i].y;
+        int y = b[i].z;
+        b[i].x = z;
+        b[i].y = -y;
+        b[i].z = x;
     }
     if (areMatchableByRotation(a, b))
         return 2;
-    // +-+
+    // z-x-y
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
-        b[i].y = -b[i].y;
-        b[i].z = -b[i].z;
+        int z = b[i].x;
+        int y = -b[i].y;
+        int x = b[i].z;
+        b[i].x = z;
+        b[i].y = -x;
+        b[i].z = -y;
     }
     if (areMatchableByRotation(a, b))
         return 3;
-    // +--
+    // zy-x
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
-        b[i].z = -b[i].z;
+        int z = b[i].x;
+        int x = -b[i].y;
+        int y = -b[i].z;
+        b[i].x = z;
+        b[i].y = y;
+        b[i].z = -x;
     }
     if (areMatchableByRotation(a, b))
         return 4;
-    // -++
+    // -z-xy
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
-        b[i].x = -b[i].x;
-        b[i].y = -b[i].y;
-        b[i].z = -b[i].z;
+        int z = b[i].x;
+        int y = b[i].y;
+        int x = -b[i].z;
+        b[i].x = -z;
+        b[i].y = -x;
+        b[i].z = y;
     }
     if (areMatchableByRotation(a, b))
         return 5;
-    // -+-
+    // -z-y-x
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
-        b[i].z = -b[i].z;
+        int z = -b[i].x;
+        int x = -b[i].y;
+        int y = b[i].z;
+        b[i].x = -z;
+        b[i].y = -y;
+        b[i].z = -x;
     }
     if (areMatchableByRotation(a, b))
         return 6;
-    // --+
+    // -zx-y
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
-        b[i].y = -b[i].y;
-        b[i].z = -b[i].z;
+        int z = -b[i].x;
+        int y = -b[i].y;
+        int x = -b[i].z;
+        b[i].x = -z;
+        b[i].y = x;
+        b[i].z = -y;
     }
     if (areMatchableByRotation(a, b))
         return 7;
-    // ---
+    // -zyx
     for (int i = 0; i < BEACONS; i++)
     {
-        if (!b[i].active)
-            continue;
-        b[i].z = -b[i].z;
+        int z = -b[i].x;
+        int x = b[i].y;
+        int y = -b[i].z;
+        b[i].x = -z;
+        b[i].y = y;
+        b[i].z = x;
     }
     if (areMatchableByRotation(a, b))
         return 8;
+    for (int i = 0; i < BEACONS; i++)
+    {
+        int z = -b[i].x;
+        int y = b[i].y;
+        int x = b[i].z;
+        b[i].x = x;
+        b[i].y = y;
+        b[i].z = z;
+    }
     return 0;
 }
 
@@ -372,10 +353,7 @@ void alignAll(Scanner *scanners)
                 continue;
             for (j = 0; j < alignedCount; j++)
                 if (areMatchable(aligned[j], scanners[i]))
-                {
-                    printf("%d got aligned with %d\n", i, j);
                     break;
-                }
             if (j != alignedCount)
             {
                 // Got aligned, yay
@@ -383,7 +361,6 @@ void alignAll(Scanner *scanners)
                 alignedIndices[alignedCount++] = i;
             }
         }
-        //printf("Iteration done\n");
     }
 }
 
@@ -406,12 +383,58 @@ int count(Scanner *scanners)
             if (k == beaconCount)
             {
                 // Found new beacon
-                printf("Found new beacon\n");
                 beacons[beaconCount++] = scanners[i][j];
             }
         }
 
     return beaconCount;
+}
+
+int manhattan(Scanner *scanners)
+{
+    Beacon beacons[BEACONS * SCANNERS] = {0};
+    int beaconCount = 0;
+
+    for (int i = 0; i < SCANNERS; i++)
+    {
+        int j = BEACONS - 1;
+        int k;
+        for (k = 0; k < beaconCount; k++)
+            if (beacons[k].x == scanners[i][j].x &&
+                    beacons[k].y == scanners[i][j].y &&
+                    beacons[k].z == scanners[i][j].z)
+                break;
+        if (k == beaconCount)
+        {
+            // Found new beacon
+            beacons[beaconCount++] = scanners[i][j];
+        }
+    }
+
+    int maxDistance = 0;
+    for (int i = 0; i < beaconCount; i++)
+        for (int j = 0; j < beaconCount; j++)
+        {
+            int distance = dist(beacons[i], beacons[j]);
+            if (distance > maxDistance)
+                maxDistance = distance;
+        }
+
+    return maxDistance;
+}
+
+int dist(Beacon a, Beacon b)
+{
+    int x = a.x - b.x;
+    if (x < 0)
+        x = -x;
+    int y = a.y - b.y;
+    if (y < 0)
+        y = -y;
+    int z = a.z - b.z;
+    if (z < 0)
+        z = -z;
+    return x + y + z;
 }
 
 void print(Scanner scanner, int size)
