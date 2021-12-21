@@ -67,7 +67,17 @@ long part2(FILE *in)
     long res1 = countWinning(s1, s2, p1, p2, memory);
     for (int i = 0; i < WIN*WIN*10*10; i++)
         memory[i] = -1;
-    long res2 = countWinning(s2, s1, p2, p1, memory);
+    long res2 = 0;
+    for (int i1 = 1; i1 <= 3; i1++)
+    for (int i2 = 1; i2 <= 3; i2++)
+    for (int i3 = 1; i3 <= 3; i3++)
+    {
+        int pos1 = (p1 + i1 + i2 + i3) % 10;
+        int score1 = s1 + pos1 + 1;
+        if (score1 >= WIN)
+            continue;
+        res2 += countWinning(s2, score1, p2, pos1, memory);
+    }
     return max(res1, res2);
 }
 
