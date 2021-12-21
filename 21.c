@@ -12,6 +12,7 @@ long part2(FILE *in);
 void read(FILE *in, int *p1, int *p2);
 // Assumes it's player 1s turn
 long countWinning(int s1, int s2, int p1, int p2, long *memory);
+long max(long a, long b);
 
 int main()
 {
@@ -63,7 +64,11 @@ long part2(FILE *in)
     long memory[WIN*WIN*10*10];
     for (int i = 0; i < WIN*WIN*10*10; i++)
         memory[i] = -1;
-    return countWinning(s1, s2, p1, p2, memory);
+    long res1 = countWinning(s1, s2, p1, p2, memory);
+    for (int i = 0; i < WIN*WIN*10*10; i++)
+        memory[i] = -1;
+    long res2 = countWinning(s2, s1, p2, p1, memory);
+    return max(res1, res2);
 }
 
 void read(FILE *in, int *p1, int *p2)
@@ -108,5 +113,10 @@ long countWinning(int s1, int s2, int p1, int p2, long *memory)
     }
     GET(memory, s1, s2, p1, p2) = res;
     return res;
+}
+
+long max(long a, long b)
+{
+    return a > b ? a : b;
 }
 
