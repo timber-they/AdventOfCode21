@@ -28,7 +28,7 @@ int getCost(int type, int *pods, int start, int end, int *mem, int *costs);
 
 int main()
 {
-    FILE *in = fopen("test23", "r");
+    FILE *in = fopen("in23", "r");
 
     printf("Part1: %d\n", part1(in));
     rewind(in);
@@ -71,14 +71,16 @@ int part1(FILE *in)
      *   #A#D#C#A#
      *   #########
      */
-    POD(pods, 0, 0) = 18;
+    /*POD(pods, 0, 0) = 18;
     POD(pods, 0, 1) = 15;
     POD(pods, 1, 0) = 11;
     POD(pods, 1, 1) = 3;
+    //POD(pods, 1, 1) = 16;
     POD(pods, 2, 0) = 13;
     POD(pods, 2, 1) = 17;
     POD(pods, 3, 0) = 14;
     POD(pods, 3, 1) = 16;
+    //POD(pods, 3, 1) = 5;*/
     /*
      * ...and should yield this:
      * #############
@@ -87,7 +89,7 @@ int part1(FILE *in)
      *   #A#B#C#A#
      *   #########
      */
-    // This should yield 9081
+    // This should yield 12081
 
     int res = minCost(pods, ids, memory, costs, 1000000, forbiddenStopper);
     free(memory);
@@ -224,12 +226,18 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
         if (ids[index] == currentId)
             break;
     if (ids[index] >= 0)
-        return memory[index];
+        return -1;//memory[index];
     // Prevent loops
     ids[index] = currentId;
     memory[index] = -1;
     // Infinity
     int min = 1<<30;
+    if (currentId == 14284319581L)
+    {
+        //printf("ACTION (%d)\n", currentMin);
+        //print(pods);
+        //getchar();
+    }
     //printf("Got currently %d indices\n", index);
 
     //printf("Iterating:\n");
@@ -345,7 +353,18 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
         //print(pods);
     }
 
-    memory[index] = min;
+    if (currentId == 14284319581L)
+    {
+        //printf("Yielded %d\n", min);
+        //getchar();
+    }
+    //if (min < 100000000)
+        //memory[index] = min;
+    //else
+    //{
+        memory[index] = -1;
+        ids[index] = -1;
+    //}
     return min;
 }
 
