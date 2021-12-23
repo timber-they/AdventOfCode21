@@ -91,7 +91,7 @@ int part1(FILE *in)
      */
     // This should yield 12081
 
-    int res = minCost(pods, ids, memory, costs, 1000000, forbiddenStopper);
+    int res = minCost(pods, ids, memory, costs, 100000000, forbiddenStopper);
     free(memory);
     free(ids);
     return res;
@@ -216,8 +216,8 @@ long id(int *pods)
 
 int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *forbiddenStopper)
 {
-    if (currentMin < 0)
-        return -1;
+    //if (currentMin < 0)
+        //return -1;
     if (hasWon(pods))
         return 0;
     long currentId = id(pods);
@@ -226,7 +226,7 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
         if (ids[index] == currentId)
             break;
     if (ids[index] >= 0)
-        return -1;//memory[index];
+        return memory[index];
     // Prevent loops
     ids[index] = currentId;
     memory[index] = -1;
@@ -282,12 +282,12 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
                 POD(pods, type, pop) = dest;
                 int mem[POSITIONS] = {0};
                 int cost = getCost(type, pods, start, dest, mem, costs);
-                if (cost >= 0 && cost < min && cost < currentMin)
+                if (cost >= 0 && cost < min/* && cost < currentMin*/)
                 {
                     //printf("Moving in %d,%d\n", type, pop);
                     int new = minCost(pods, ids, memory, costs, currentMin-cost, forbiddenStopper);
                     int total = cost + new;
-                    if (new >= 0 && total < currentMin)
+                    if (new >= 0 && total < min)
                     {
                         min = total;
                         currentMin = min;
@@ -326,7 +326,7 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
                 POD(pods, type, pop) = dest;
                 int mem[POSITIONS] = {0};
                 int cost = getCost(type, pods, start, dest, mem, costs);
-                if (cost >= 0 && cost < min && cost < currentMin)
+                if (cost >= 0 && cost < min/* && cost < currentMin*/)
                 {
                     //printf("Removing %d,%d\n", type, pop);
                     if (start == 16 && dest == 5)
@@ -337,7 +337,7 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
                     }
                     int new = minCost(pods, ids, memory, costs, currentMin-cost, forbiddenStopper);
                     int total = cost + new;
-                    if (new >= 0 && total < currentMin)
+                    if (new >= 0 && total < min)
                     {
                         min = total;
                         currentMin = min;
@@ -358,13 +358,7 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
         //printf("Yielded %d\n", min);
         //getchar();
     }
-    //if (min < 100000000)
-        //memory[index] = min;
-    //else
-    //{
-        memory[index] = -1;
-        ids[index] = -1;
-    //}
+    memory[index] = min;
     return min;
 }
 
