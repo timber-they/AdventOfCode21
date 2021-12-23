@@ -4,38 +4,31 @@
 #include <errno.h>
 #include <math.h>
 
-#define POSITIONS 15
-/*
- * #################
- * #01. 2. 3. 4. 56#
- * ###7 #9 #11#13###
- *   #8 #10#12#14#
- *   #############
- */
-#define ID(a1,a2,b1,b2,c1,c2,d1,d2) ((a1) + (a2) * POSITIONS + \
-        (b1) * POSITIONS * POSITIONS + (b2) * POSITIONS * POSITIONS * POSITIONS + \
-        (c1) * POSITIONS * POSITIONS * POSITIONS * POSITIONS + \
-        (c2) * POSITIONS * POSITIONS * POSITIONS * POSITIONS * POSITIONS + \
-        (d1) * POSITIONS * POSITIONS * POSITIONS * POSITIONS * POSITIONS * POSITIONS + \
-        (long) (d2) * POSITIONS * POSITIONS * POSITIONS * \
-        POSITIONS * POSITIONS * POSITIONS * POSITIONS)
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define COST(map,type,from,to) ((map)[(type) + (from)*TYPES + (to)*TYPES*POSITIONS])
+#define REQUIRES(map,type,to,stopped) ((map)[(type) + (to)*TYPES + (stopped)*TYPES*POSITIONS])
+#define POD(map,type,pop) ((map)[(type) + pop*TYPES])
+
+#define POSITIONS 19
+#define TYPES 4
+#define POP 2
+#define HALLWAY 11
+#define MEMORY 1000000
 
 int part1(FILE *in);
 int part2(FILE *in);
-long read(FILE *in);
-short minCost(long position, short *memory);
-int hasWon(long position);
-long template(long id, int index);
-long normalize(long id);
-int isBlocked(int start, int end, int *others);
-int isMyRoom(int pos, int name);
-int getSteps(int start, int end);
+void fillCosts(int *costs);
+void fillRequires(int *requires);
+void fillPods(FILE *in, int *pods);
+long id(int *pods);
+int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *forbiddenStopper);
+int hasWon(int *pods);
+void print(int *pods);
+int isDone(int type, int pop, int *pods);
+int getCost(int type, int *pods, int start, int end, int *mem, int *costs);
 
 int main()
 {
-    FILE *in = fopen("in23", "r");
+    FILE *in = fopen("test23", "r");
 
     printf("Part1: %d\n", part1(in));
     rewind(in);
@@ -47,11 +40,58 @@ int main()
 
 int part1(FILE *in)
 {
-    long pos = read(in);
-    short *memory = calloc((long) POSITIONS * POSITIONS * POSITIONS * POSITIONS *
-            POSITIONS * POSITIONS * POSITIONS * POSITIONS, sizeof(*memory));
-    int res = minCost(pos, memory);
+    int costs[TYPES*POSITIONS*POSITIONS] = {0};
+    // 2 because stopped is either 0 or 1
+    int pods[TYPES*POP];
+    for (int i = 0; i < TYPES*POP; i++)
+        pods[i] = -1;
+    long *ids = malloc(MEMORY * sizeof(*ids));
+    for (int i = 0; i < MEMORY; i++)
+        ids[i] = -1;
+    int *memory = calloc(MEMORY, sizeof(*memory));
+    int forbiddenStopper[POSITIONS] = {0};
+    for (int i = 2; i <= 8; i+=2)
+        forbiddenStopper[i] = 1;
+
+    fillCosts(costs);
+    fillPods(in, pods);
+
+/*
+ * ########################
+ * #0 1 2 3 4 5 6 7 8 9 10#
+ * #####11##12##13##14#####
+ *     #15##16##17##18#
+ *     ################
+ */
+    /*
+     * This is this:
+     * #############
+     * #...B.......#
+     * ###B#.#C#D###
+     *   #A#D#C#A#
+     *   #########
+     */
+    POD(pods, 0, 0) = 18;
+    POD(pods, 0, 1) = 15;
+    POD(pods, 1, 0) = 11;
+    POD(pods, 1, 1) = 3;
+    POD(pods, 2, 0) = 13;
+    POD(pods, 2, 1) = 17;
+    POD(pods, 3, 0) = 14;
+    POD(pods, 3, 1) = 16;
+    /*
+     * ...and should yield this:
+     * #############
+     * #.....D.....#
+     * ###B#.#C#D###
+     *   #A#B#C#A#
+     *   #########
+     */
+    // This should yield 9081
+
+    int res = minCost(pods, ids, memory, costs, 1000000, forbiddenStopper);
     free(memory);
+    free(ids);
     return res;
 }
 
@@ -60,752 +100,329 @@ int part2(FILE *in)
     return -2;
 }
 
-static void fill (char p, long val, long *a1, long *a2, long *b1, long *b2,
-        long *c1, long *c2, long *d1, long *d2)
+/*
+ * ########################
+ * #0 1 2 3 4 5 6 7 8 9 10#
+ * #####11##12##13##14#####
+ *     #15##16##17##18#
+ *     ################
+ */
+void fillCosts(int *costs)
 {
-    switch(p)
+    for (int i = 0; i < HALLWAY-1; i++)
     {
-        case 'A':
-            if (*a1 < 0)
-                *a1 = val;
-            else
-                *a2 = val;
-            break;
-        case 'B':
-            if (*b1 < 0)
-                *b1 = val;
-            else
-                *b2 = val;
-            break;
-        case 'C':
-            if (*c1 < 0)
-                *c1 = val;
-            else
-                *c2 = val;
-            break;
-        case 'D':
-            if (*d1 < 0)
-                *d1 = val;
-            else
-                *d2 = val;
-            break;
+        COST(costs,0,i,i+1) = 1;
+        COST(costs,0,i+1,i) = 1;
+        COST(costs,1,i,i+1) = 10;
+        COST(costs,1,i+1,i) = 10;
+        COST(costs,2,i,i+1) = 100;
+        COST(costs,2,i+1,i) = 100;
+        COST(costs,3,i,i+1) = 1000;
+        COST(costs,3,i+1,i) = 1000;
     }
-}
-long read(FILE *in)
-{
-    // The first two lines are unimportant
-    fscanf(in, "%*s\n");
-    fscanf(in, "%*s\n");
-    char p1, p2, p3, p4, p5, p6, p7, p8;
-    fscanf(in, "###%c#%c#%c#%c###\n", &p1, &p2, &p3, &p4) == 4 ||
-        fprintf(stderr, "Couldn't read line\n");
-    fscanf(in, "  #%c#%c#%c#%c#  \n", &p5, &p6, &p7, &p8) == 4 ||
-        fprintf(stderr, "Couldn't read line\n");
-    long a1 = -1, a2 = -1, b1 = -1, b2 = -1, c1 = -1, c2 = -1, d1 = -1, d2 = -1;
-    fill(p1, 7, &a1, &a2, &b1, &b2, &c1, &c2, &d1, &d2);
-    fill(p2, 8, &a1, &a2, &b1, &b2, &c1, &c2, &d1, &d2);
-    fill(p3, 9, &a1, &a2, &b1, &b2, &c1, &c2, &d1, &d2);
-    fill(p4, 10, &a1, &a2, &b1, &b2, &c1, &c2, &d1, &d2);
-    fill(p5, 11, &a1, &a2, &b1, &b2, &c1, &c2, &d1, &d2);
-    fill(p6, 12, &a1, &a2, &b1, &b2, &c1, &c2, &d1, &d2);
-    fill(p7, 13, &a1, &a2, &b1, &b2, &c1, &c2, &d1, &d2);
-    fill(p8, 14, &a1, &a2, &b1, &b2, &c1, &c2, &d1, &d2);
-    return ID(a1, a2, b1, b2, c1, c2, d1, d2);
+    for (int i = 0; i < TYPES; i++)
+    {
+        int val = 1;
+        for (int j = 0; j < i; j++)
+            val *= 10;
+        COST(costs,i,11,2) = val;
+        COST(costs,i,11,15) = val;
+        COST(costs,i,15,11) = val;
+        COST(costs,i,12,4) = val;
+        COST(costs,i,12,16) = val;
+        COST(costs,i,16,12) = val;
+        COST(costs,i,13,6) = val;
+        COST(costs,i,13,17) = val;
+        COST(costs,i,17,13) = val;
+        COST(costs,i,14,8) = val;
+        COST(costs,i,14,18) = val;
+        COST(costs,i,18,14) = val;
+    }
+    COST(costs,0,2,11) = 1;
+    COST(costs,1,4,12) = 10;
+    COST(costs,2,6,13) = 100;
+    COST(costs,3,8,14) = 1000;
 }
 
-short minCost(long position, short *memory)
+// Move is required, if the pod moved in the last move
+void fillRequires(int *requires)
 {
-    position = normalize(position);
-    if (hasWon(position))
-        return 0;
-    else if (memory[position] > 0)
-        return memory[position];
-    else if (memory[position] < 0)
+    for (int i = 0; i < TYPES; i++)
+    {
+        for (int j = 2; j <= 8; j+= 2)
+        {
+            REQUIRES(requires,i,j,0) = 1;
+            REQUIRES(requires,i,j,1) = 1;
+        }
+        for (int j = 0; j < HALLWAY; j++)
+            REQUIRES(requires,i,j,1) = 1;
+    }
+}
+
+/*
+ * ########################
+ * #0 1 2 3 4 5 6 7 8 9 10#
+ * #####11##12##13##14#####
+ *     #15##16##17##18#
+ *     ################
+ */
+void fillPods(FILE *in, int *pods)
+{
+    // First two lines are discarded
+    fscanf(in, "%*s\n");
+    fscanf(in, "%*s\n");
+    char roomPods[POP*TYPES];
+    fscanf(in, "###%c#%c#%c#%c###\n  #%c#%c#%c#%c#\n",
+            roomPods+0, roomPods+1, roomPods+2, roomPods+3,
+            roomPods+4, roomPods+5, roomPods+6, roomPods+7) == POP*TYPES ||
+        fprintf(stderr, "Couldn't read pods\n");
+    // Normalize
+    for (int i = 0; i < POP*TYPES; i++)
+        roomPods[i] -= 'A';
+    for (int i = 0; i < POP*TYPES; i++)
+    {
+        int j;
+        for (j = 0; j < POP; j++)
+            if (POD(pods,roomPods[i],j) < 0)
+            {
+                POD(pods,roomPods[i], j) = HALLWAY+i;
+                break;
+            }
+        if (j == POP)
+            fprintf(stderr, "Couldn't fit pod\n");
+    }
+}
+
+long id(int *pods)
+{
+    long res = 0;
+    for (int i = 0; i < TYPES; i++)
+    {
+        if (POD(pods,i,0) > POD(pods,i,1))
+        {
+            res = res * POSITIONS + (long) POD(pods,i,1);
+            res = res * POSITIONS + (long) POD(pods,i,0);
+        }
+        else
+        {
+            res = res * POSITIONS + (long) POD(pods,i,0);
+            res = res * POSITIONS + (long) POD(pods,i,1);
+        }
+    }
+    return res;
+}
+
+int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *forbiddenStopper)
+{
+    if (currentMin < 0)
         return -1;
-    memory[position] = -1;
+    if (hasWon(pods))
+        return 0;
+    long currentId = id(pods);
+    int index;
+    for (index = 0; ids[index] >= 0; index++)
+        if (ids[index] == currentId)
+            break;
+    if (ids[index] >= 0)
+        return memory[index];
+    // Prevent loops
+    ids[index] = currentId;
+    memory[index] = -1;
+    // Infinity
     int min = 1<<30;
-    long a1 = template(position, 0),
-        a2 = template(position, 1),
-        b1 = template(position, 2),
-        b2 = template(position, 3),
-        c1 = template(position, 4),
-        c2 = template(position, 5),
-        d1 = template(position, 6),
-        d2 = template(position, 7);
-    int positions[] = {a1, a2, b1, b2, c1, c2, d1, d2};
+    //printf("Got currently %d indices\n", index);
 
-    for (int i = 0; i < POSITIONS; i++)
+    //printf("Iterating:\n");
+    //print(pods);
+    //getchar();
+
+    /*
+     * This is this:
+     * #############
+     * #...B.......#
+     * ###B#.#C#D###
+     *   #A#D#C#A#
+     *   #########
+     */
+/*
+ * ########################
+ * #0 1 2 3 4 5 6 7 8 9 10#
+ * #####11##12##13##14#####
+ *     #15##16##17##18#
+ *     ################
+ */
+    // Move in
+    for (int type = 0; type < TYPES; type++)
+        for (int pop = 0; pop < POP; pop++)
+        {
+            // Can't move in what's not in the hallway
+            if (POD(pods, type, pop) >= HALLWAY)
+                continue;
+            int start = POD(pods, type, pop);
+            for (int dest = HALLWAY; dest < POSITIONS; dest++)
+            {
+                // We actually do want to move
+                if (start == dest)
+                    continue;
+                // We can't jump into ourselves
+                int i;
+                for (i = 0; i < TYPES*POP; i++)
+                    if (pods[i] == dest)
+                        break;
+                if (i != TYPES*POP)
+                    continue;
+                POD(pods, type, pop) = dest;
+                int mem[POSITIONS] = {0};
+                int cost = getCost(type, pods, start, dest, mem, costs);
+                if (cost >= 0 && cost < min && cost < currentMin)
+                {
+                    //printf("Moving in %d,%d\n", type, pop);
+                    int new = minCost(pods, ids, memory, costs, currentMin-cost, forbiddenStopper);
+                    int total = cost + new;
+                    if (new >= 0 && total < currentMin)
+                    {
+                        min = total;
+                        currentMin = min;
+                    }
+                }
+                POD(pods, type, pop) = start;
+            }
+        }
+
+    // Remove
+    for (int type = TYPES-1; type >= 0; type--)
+        for (int pop = POP-1; pop >= 0; pop--)
+        {
+            // Can't remove what's not in its room
+            if (POD(pods,type,pop) < HALLWAY)
+                continue;
+            // Won't remove what's done
+            if (isDone(type, pop, pods))
+                continue;
+            int start = POD(pods, type, pop);
+            for (int dest = 0; dest < HALLWAY; dest++)
+            {
+                // We actually do want to move
+                if (dest == start)
+                    continue;
+                // We can't stop here
+                if (forbiddenStopper[dest])
+                    continue;
+                // We can't jump into ourselves
+                int i;
+                for (i = 0; i < TYPES*POP; i++)
+                    if (pods[i] == dest)
+                        break;
+                if (i != TYPES*POP)
+                    continue;
+                POD(pods, type, pop) = dest;
+                int mem[POSITIONS] = {0};
+                int cost = getCost(type, pods, start, dest, mem, costs);
+                if (cost >= 0 && cost < min && cost < currentMin)
+                {
+                    //printf("Removing %d,%d\n", type, pop);
+                    if (start == 16 && dest == 5)
+                    {
+                        //printf("Cost for this is: %d\n", cost);
+                        //print(pods);
+                        //getchar();
+                    }
+                    int new = minCost(pods, ids, memory, costs, currentMin-cost, forbiddenStopper);
+                    int total = cost + new;
+                    if (new >= 0 && total < currentMin)
+                    {
+                        min = total;
+                        currentMin = min;
+                    }
+                }
+                POD(pods, type, pop) = start;
+            }
+        }
+
+    if (min < 100000)
     {
-        short cost;
-        if (i != a1 && !isBlocked(a1, i, positions) && (i < 7 || isMyRoom(i, 0)) && (a1 >= 7 || i >= 7))
-        {
-            cost = minCost(ID(i, a2, b1, b2, c1, c2, d1, d2), memory);
-            if (cost >= 0)
-            {
-                cost += getSteps(a1, i);
-                if (cost < min)
-                    min = cost;
-            }
-        }
-        if (i != a2 && !isBlocked(a2, i, positions) && (i < 7 || isMyRoom(i, 0)) && (a2 >= 7 || i >= 7))
-        {
-            cost = minCost(ID(a1, i, b1, b2, c1, c2, d1, d2), memory);
-            if (cost >= 0)
-            {
-                cost += getSteps(a2, i);
-                if (cost < min)
-                    min = cost;
-            }
-        }
-        if (i != b1 && !isBlocked(b1, i, positions) && (i < 7 || isMyRoom(i, 1)) && (b1 >= 7 || i >= 7))
-        {
-            cost = minCost(ID(a1, a2, i, b2, c1, c2, d1, d2), memory);
-            if (cost >= 0)
-            {
-                cost += getSteps(b1, i);
-                if (cost < min)
-                    min = cost;
-            }
-        }
-        if (i != b2 && !isBlocked(b2, i, positions) && (i < 7 || isMyRoom(i, 1)) && (b2 >= 7 || i >= 7))
-        {
-            cost = minCost(ID(a1, a2, b1, i, c1, c2, d1, d2), memory);
-            if (cost >= 0)
-            {
-                cost += getSteps(b2, i);
-                if (cost < min)
-                    min = cost;
-            }
-        }
-        if (i != c1 && !isBlocked(c1, i, positions) && (i < 7 || isMyRoom(i, 2)) && (c1 >= 7 || i >= 7))
-        {
-            cost = minCost(ID(a1, a2, b1, b2, i, c2, d1, d2), memory);
-            if (cost >= 0)
-            {
-                cost += getSteps(c1, i);
-                if (cost < min)
-                    min = cost;
-            }
-        }
-        if (i != c2 && !isBlocked(c2, i, positions) && (i < 7 || isMyRoom(i, 2)) && (c2 >= 7 || i >= 7))
-        {
-            cost = minCost(ID(a1, a2, b1, b2, c1, i, d1, d2), memory);
-            if (cost >= 0)
-            {
-                cost += getSteps(c2, i);
-                if (cost < min)
-                    min = cost;
-            }
-        }
-        if (i != d1 && !isBlocked(d1, i, positions) && (i < 7 || isMyRoom(i, 3)) && (d1 >= 7 || i >= 7))
-        {
-            cost = minCost(ID(a1, a2, b1, b2, c1, c2, i, d2), memory);
-            if (cost >= 0)
-            {
-                cost += getSteps(d1, i);
-                if (cost < min)
-                    min = cost;
-            }
-        }
-        if (i != d2 && !isBlocked(d2, i, positions) && (i < 7 || isMyRoom(i, 3)) && (d2 >= 7 || i >= 7))
-        {
-            cost = minCost(ID(a1, a2, b1, b2, c1, c2, d1, i), memory);
-            if (cost >= 0)
-            {
-                cost += getSteps(d2, i);
-                if (cost < min)
-                    min = cost;
-            }
-        }
-
+        //printf("Iterated: (min=%d)\n", min);
+        //print(pods);
     }
 
-    memory[position] = min;
+    memory[index] = min;
     return min;
 }
 
-int hasWon(long position)
-{
-    long a1 = template(position, 0),
-        a2 = template(position, 1),
-        b1 = template(position, 2),
-        b2 = template(position, 3),
-        c1 = template(position, 4),
-        c2 = template(position, 5),
-        d1 = template(position, 6),
-        d2 = template(position, 7);
-    return a1 != a2 &&
-        b1 != b2 &&
-        c1 != c2 &&
-        d1 != d2 &&
-        a1 == 7 &&
-        a2 == 8 &&
-        b1 == 9 &&
-        b2 == 10 &&
-        c1 == 11 &&
-        c2 == 12 &&
-        d1 == 13 &&
-        d2 == 14;
-}
-
-long template(long id, int index)
-{
-    for (int i = 0; i < index; i++)
-        id /= POSITIONS;
-    id -= (id / POSITIONS) * POSITIONS;
-    return id;
-}
-
-long normalize(long id)
-{
-    long a1 = template(id, 0),
-        a2 = template(id, 1),
-        b1 = template(id, 2),
-        b2 = template(id, 3),
-        c1 = template(id, 4),
-        c2 = template(id, 5),
-        d1 = template(id, 6),
-        d2 = template(id, 7);
-    return ID(MIN(a1, a2), MAX(a1, a2),
-            MIN(b1, b2), MAX(b1, b2),
-            MIN(c1, c2), MAX(c1, c2),
-            MIN(d1, d2), MAX(d1, d2));
-}
-
-
 /*
- * #################
- * #01. 2. 3. 4. 56#
- * ###7 #9 #11#13###
- *   #8 #10#12#14#
- *   #############
+ * ########################
+ * #0 1 2 3 4 5 6 7 8 9 10#
+ * #####11##12##13##14#####
+ *     #15##16##17##18#
+ *     ################
  */
-static int fillBlockingPoints(int start, int end, int *blockingPoints, int blockingCount)
+int hasWon(int *pods)
 {
-    switch(start)
-    {
-        case 0:
-            switch(end)
-            {
-                case 1:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 1;
-                    blockingCount = fillBlockingPoints(1, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 1:
-            switch(end)
-            {
-                case 0:
-                    break;
-                case 7:
-                    break;
-                case 8:
-                    blockingPoints[blockingCount++] = 7;
-                    break;
-                case 2:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 2;
-                    blockingCount = fillBlockingPoints(2, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 2:
-            switch(end)
-            {
-                case 7:
-                    break;
-                case 8:
-                    blockingPoints[blockingCount++] = 7;
-                    break;
-                case 1:
-                    break;
-                case 0:
-                    blockingPoints[blockingCount++] = 1;
-                    blockingCount = fillBlockingPoints(1, end, blockingPoints, blockingCount);
-                    break;
-                case 9:
-                    break;
-                case 10:
-                    blockingPoints[blockingCount++] = 9;
-                    break;
-                case 3:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 3;
-                    blockingCount = fillBlockingPoints(3, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 3:
-            switch(end)
-            {
-                case 9:
-                    break;
-                case 10:
-                    blockingPoints[blockingCount++] = 9;
-                    break;
-                case 2:
-                    break;
-                case 0:
-                case 1:
-                case 7:
-                case 8:
-                    blockingPoints[blockingCount++] = 2;
-                    blockingCount = fillBlockingPoints(2, end, blockingPoints, blockingCount);
-                    break;
-                case 11:
-                    break;
-                case 12:
-                    blockingPoints[blockingCount++] = 11;
-                    break;
-                case 4:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 4;
-                    blockingCount = fillBlockingPoints(4, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 4:
-            switch(end)
-            {
-                case 13:
-                    break;
-                case 14:
-                    blockingPoints[blockingCount++] = 13;
-                    break;
-                case 5:
-                    break;
-                case 6:
-                    blockingPoints[blockingCount++] = 5;
-                    blockingCount = fillBlockingPoints(5, end, blockingPoints, blockingCount);
-                    break;
-                case 11:
-                    break;
-                case 12:
-                    blockingPoints[blockingCount++] = 11;
-                    break;
-                case 3:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 3;
-                    blockingCount = fillBlockingPoints(3, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 5:
-            switch(end)
-            {
-                case 6:
-                    break;
-                case 13:
-                    break;
-                case 14:
-                    blockingPoints[blockingCount++] = 13;
-                    break;
-                case 4:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 4;
-                    blockingCount = fillBlockingPoints(4, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 6:
-            switch(end)
-            {
-                case 5:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 5;
-                    blockingCount = fillBlockingPoints(5, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 7:
-            switch(end)
-            {
-                case 1:
-                    break;
-                case 0:
-                    blockingPoints[blockingCount++] = 1;
-                    blockingCount = fillBlockingPoints(1, end, blockingPoints, blockingCount);
-                    break;
-                case 8:
-                    break;
-                case 2:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 2;
-                    blockingCount = fillBlockingPoints(2, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 8:
-            switch(end)
-            {
-                case 7:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 7;
-                    blockingCount = fillBlockingPoints(7, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 9:
-            switch(end)
-            {
-                case 2:
-                    break;
-                case 0:
-                case 1:
-                case 7:
-                case 8:
-                    blockingPoints[blockingCount++] = 2;
-                    blockingCount = fillBlockingPoints(2, end, blockingPoints, blockingCount);
-                    break;
-                case 10:
-                    break;
-                case 3:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 3;
-                    blockingCount = fillBlockingPoints(3, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 10:
-            switch(end)
-            {
-                case 9:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 9;
-                    blockingCount = fillBlockingPoints(9, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 11:
-            switch(end)
-            {
-                case 4:
-                    break;
-                case 13:
-                case 14:
-                case 5:
-                case 6:
-                    blockingPoints[blockingCount++] = 4;
-                    blockingCount = fillBlockingPoints(4, end, blockingPoints, blockingCount);
-                    break;
-                case 12:
-                    break;
-                case 3:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 3;
-                    blockingCount = fillBlockingPoints(3, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 12:
-            switch(end)
-            {
-                case 11:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 11;
-                    blockingCount = fillBlockingPoints(11, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 13:
-            switch(end)
-            {
-                case 5:
-                    break;
-                case 6:
-                    blockingPoints[blockingCount++] = 5;
-                    blockingCount = fillBlockingPoints(5, end, blockingPoints, blockingCount);
-                    break;
-                case 14:
-                    break;
-                case 4:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 4;
-                    blockingCount = fillBlockingPoints(4, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-        case 14:
-            switch(end)
-            {
-                case 13:
-                    break;
-                default:
-                    blockingPoints[blockingCount++] = 13;
-                    blockingCount = fillBlockingPoints(13, end, blockingPoints, blockingCount);
-                    break;
-            }
-            break;
-    }
-    return blockingCount;
-}
-int isBlocked(int start, int end, int *others)
-{
-    int blockingPoints[2*POSITIONS] = {0};
-    int blockingCount = 0;
-    if (end == start)
-        return 0;
-    blockingPoints[blockingCount++] = end;
-    blockingCount = fillBlockingPoints(start, end, blockingPoints, blockingCount);
-    for (int i = 0; i < 8; i++)
-    {
-        if (i == start)
-            // This must be myself
-            continue;
-        for (int j = 0; j < blockingCount; j++)
-            if (blockingPoints[j] == others[i])
-                return 1;
-    }
-    return 0;
+    for (int i = 0; i < TYPES; i++)
+        for (int j = 0; j < POP; j++)
+            if (POD(pods,i,j) != HALLWAY+i && POD(pods,i,j) != HALLWAY+TYPES+i)
+                return 0;
+    return 1;
 }
 
-int isMyRoom(int pos, int name)
+void print(int *pods)
 {
-    return ((pos == 7 || pos == 8) && name == 0) ||
-        ((pos == 9 || pos == 10) && name == 1) ||
-        ((pos == 11 || pos == 12) && name == 2) ||
-        ((pos == 13 || pos == 14) && name == 3);
+    char map[POSITIONS];
+    for (int i = 0; i < POSITIONS; i++)
+        map[i] = '.';
+    for (int i = 0; i < TYPES; i++)
+        for (int j = 0; j < POP; j++)
+            map[POD(pods, i, j)] = 'A'+i;
+
+    printf("#############\n");
+    printf("#");
+    for (int i = 0; i < HALLWAY; i++)
+        printf("%c", map[i]);
+    printf("#\n##");
+    for (int i = 0; i < TYPES; i++)
+        printf("#%c", map[i+HALLWAY]);
+    printf("###\n  ");
+    for (int i = 0; i < TYPES; i++)
+        printf("#%c", map[i+TYPES+HALLWAY]);
+    printf("#\n  #########\n");
 }
 
-int getSteps(int start, int end)
+int isDone(int type, int pop, int *pods)
+{
+    int this = POD(pods, type, pop);
+    int other = POD(pods, type, (pop+1)%POP);
+    int res = this == HALLWAY + TYPES + type ||
+        (other == HALLWAY + TYPES + type && this == HALLWAY + type);
+    //printf("Is %d,%d (%d) done? %d!\n", type, pop, this, res);
+    return res;
+}
+
+int getCost(int type, int *pods, int start, int end, int *mem, int *costs)
 {
     if (start == end)
         return 0;
-    switch(start)
+    if (mem[start])
+        return mem[start];
+    for (int i = 0; i < POP*TYPES; i++)
+        if (pods[i] == start)
+            return -1;
+    mem[start] = -1;
+    int min = 1<<30;
+    for (int i = 0; i < POSITIONS; i++)
     {
-        case 0:
-            switch(end)
+        int cost = COST(costs, type, start, i);
+        if (cost && cost < min)
+        {
+            int new = getCost(type, pods, i, end, mem, costs);
+            if (new >= 0)
             {
-                case 1:
-                    return 1;
-                default:
-                    return 1 + getSteps(1, end);
+                int total = new + cost;
+                if (total < min)
+                    min = total;
             }
-            break;
-        case 1:
-            switch(end)
-            {
-                case 0:
-                    return 1;
-                case 7:
-                    return 2;
-                case 8:
-                    return 3;
-                case 2:
-                    return 2;
-                default:
-                    return 2 + getSteps(2, end);
-            }
-            break;
-        case 2:
-            switch(end)
-            {
-                case 7:
-                    return 2;
-                case 8:
-                    return 3;
-                case 1:
-                    return 2;
-                case 0:
-                    return 2 + getSteps(1, end);
-                case 9:
-                    return 2;
-                case 10:
-                    return 3;
-                case 3:
-                    return 2;
-                default:
-                    return 2 + getSteps(2, end);
-            }
-            break;
-        case 3:
-            switch(end)
-            {
-                case 9:
-                    return 2;
-                case 10:
-                    return 3;
-                case 2:
-                    return 2;
-                case 0:
-                case 1:
-                case 7:
-                case 8:
-                    return 2 + getSteps(2, end);
-                case 11:
-                    return 2;
-                case 12:
-                    return 3;
-                case 4:
-                    return 2;
-                default:
-                    return 2 + getSteps(4, end);
-            }
-            break;
-        case 4:
-            switch(end)
-            {
-                case 13:
-                    return 2;
-                case 14:
-                    return 3;
-                case 5:
-                    return 2;
-                case 6:
-                    return 2 + getSteps(5, end);
-                case 11:
-                    return 2;
-                case 12:
-                    return 3;
-                case 3:
-                    return 2;
-                default:
-                    return 2 + getSteps(3, end);
-            }
-            break;
-        case 5:
-            switch(end)
-            {
-                case 6:
-                    return 1;
-                case 13:
-                    return 2;
-                case 14:
-                    return 3;
-                case 4:
-                    return 2;
-                default:
-                    return 2 + getSteps(2, end);
-            }
-            break;
-        case 6:
-            switch(end)
-            {
-                case 5:
-                    return 1;
-                default:
-                    return 1 + getSteps(5, end);
-            }
-            break;
-        case 7:
-            switch(end)
-            {
-                case 1:
-                    return 2;
-                case 0:
-                    return 2 + getSteps(1, end);
-                case 8:
-                    return 1;
-                case 2:
-                    return 2;
-                default:
-                    return 2 + getSteps(2, end);
-            }
-            break;
-        case 8:
-            switch(end)
-            {
-                case 7:
-                    return 1;
-                default:
-                    return 1 + getSteps(7, end);
-            }
-            break;
-        case 9:
-            switch(end)
-            {
-                case 2:
-                    return 2;
-                case 0:
-                case 1:
-                case 7:
-                case 8:
-                    return 2 + getSteps(2, end);
-                case 10:
-                    return 1;
-                case 3:
-                    return 2;
-                default:
-                    return 2 + getSteps(3, end);
-            }
-            break;
-        case 10:
-            switch(end)
-            {
-                case 9:
-                    return 1;
-                default:
-                    return 1 + getSteps(9, end);
-            }
-            break;
-        case 11:
-            switch(end)
-            {
-                case 4:
-                    return 2;
-                case 13:
-                case 14:
-                case 5:
-                case 6:
-                    return 2 + getSteps(4, end);
-                case 12:
-                    return 1;
-                case 3:
-                    return 2;
-                default:
-                    return 2 + getSteps(3, end);
-            }
-            break;
-        case 12:
-            switch(end)
-            {
-                case 11:
-                    return 1;
-                default:
-                    return 1 + getSteps(11, end);
-            }
-            break;
-        case 13:
-            switch(end)
-            {
-                case 5:
-                    return 2;
-                case 6:
-                    return 2 + getSteps(5, end);
-                case 14:
-                    return 1;
-                case 4:
-                    return 2;
-                default:
-                    return 2 + getSteps(4, end);
-            }
-            break;
-        case 14:
-            switch(end)
-            {
-                case 13:
-                    return 1;
-                default:
-                    return 1 + getSteps(13, end);
-            }
-            break;
+        }
     }
-    return -1;
+    mem[start] = min;
+    return min != 1<<30 ? min : -1;
 }
 
