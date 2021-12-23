@@ -25,7 +25,7 @@
 int part1(FILE *in);
 int part2(FILE *in);
 long read(FILE *in);
-int minCost(long position, int *memory);
+short minCost(long position, short *memory);
 int hasWon(long position);
 long template(long id, int index);
 long normalize(long id);
@@ -48,7 +48,7 @@ int main()
 int part1(FILE *in)
 {
     long pos = read(in);
-    int *memory = calloc((long) POSITIONS * POSITIONS * POSITIONS * POSITIONS *
+    short *memory = calloc((long) POSITIONS * POSITIONS * POSITIONS * POSITIONS *
             POSITIONS * POSITIONS * POSITIONS * POSITIONS, sizeof(*memory));
     int res = minCost(pos, memory);
     free(memory);
@@ -113,7 +113,7 @@ long read(FILE *in)
     return ID(a1, a2, b1, b2, c1, c2, d1, d2);
 }
 
-int minCost(long position, int *memory);
+short minCost(long position, short *memory)
 {
     position = normalize(position);
     if (hasWon(position))
@@ -123,7 +123,7 @@ int minCost(long position, int *memory);
     else if (memory[position] < 0)
         return -1;
     memory[position] = -1;
-    int minCost = 1<<30;
+    int min = 1<<30;
     long a1 = template(position, 0),
         a2 = template(position, 1),
         b1 = template(position, 2),
@@ -136,93 +136,92 @@ int minCost(long position, int *memory);
 
     for (int i = 0; i < POSITIONS; i++)
     {
-        int cost;
-        if (i != a1 && !isBlocked(a1, i) && (i < 7 || isMyRoom(i, 0)) && (a1 >= 7 || i >= 7))
+        short cost;
+        if (i != a1 && !isBlocked(a1, i, positions) && (i < 7 || isMyRoom(i, 0)) && (a1 >= 7 || i >= 7))
         {
             cost = minCost(ID(i, a2, b1, b2, c1, c2, d1, d2), memory);
             if (cost >= 0)
             {
                 cost += getSteps(a1, i);
-                if (cost < minCost)
-                    minCost = cost;
+                if (cost < min)
+                    min = cost;
             }
         }
-        if (i != a2 && !isBlocked(a2, i) && (i < 7 || isMyRoom(i, 0)) && (a2 >= 7 || i >= 7))
+        if (i != a2 && !isBlocked(a2, i, positions) && (i < 7 || isMyRoom(i, 0)) && (a2 >= 7 || i >= 7))
         {
             cost = minCost(ID(a1, i, b1, b2, c1, c2, d1, d2), memory);
             if (cost >= 0)
             {
                 cost += getSteps(a2, i);
-                if (cost < minCost)
-                    minCost = cost;
+                if (cost < min)
+                    min = cost;
             }
         }
-        if (i != b1 && !isBlocked(b1, i) && (i < 7 || isMyRoom(i, 1)) && (b1 >= 7 || i >= 7))
+        if (i != b1 && !isBlocked(b1, i, positions) && (i < 7 || isMyRoom(i, 1)) && (b1 >= 7 || i >= 7))
         {
             cost = minCost(ID(a1, a2, i, b2, c1, c2, d1, d2), memory);
             if (cost >= 0)
             {
                 cost += getSteps(b1, i);
-                if (cost < minCost)
-                    minCost = cost;
+                if (cost < min)
+                    min = cost;
             }
         }
-        if (i != b2 && !isBlocked(b2, i) && (i < 7 || isMyRoom(i, 1)) && (b2 >= 7 || i >= 7))
+        if (i != b2 && !isBlocked(b2, i, positions) && (i < 7 || isMyRoom(i, 1)) && (b2 >= 7 || i >= 7))
         {
             cost = minCost(ID(a1, a2, b1, i, c1, c2, d1, d2), memory);
             if (cost >= 0)
             {
                 cost += getSteps(b2, i);
-                if (cost < minCost)
-                    minCost = cost;
+                if (cost < min)
+                    min = cost;
             }
         }
-        if (i != c1 && !isBlocked(c1, i) && (i < 7 || isMyRoom(i, 2)) && (c1 >= 7 || i >= 7))
+        if (i != c1 && !isBlocked(c1, i, positions) && (i < 7 || isMyRoom(i, 2)) && (c1 >= 7 || i >= 7))
         {
             cost = minCost(ID(a1, a2, b1, b2, i, c2, d1, d2), memory);
             if (cost >= 0)
             {
                 cost += getSteps(c1, i);
-                if (cost < minCost)
-                    minCost = cost;
+                if (cost < min)
+                    min = cost;
             }
         }
-        // TODO: Continue
-        if (i != a1 && !isBlocked(a1, i) && (i < 7 || isMyRoom(i, 0)) && (a1 >= 7 || i >= 7))
+        if (i != c2 && !isBlocked(c2, i, positions) && (i < 7 || isMyRoom(i, 2)) && (c2 >= 7 || i >= 7))
         {
-            cost = minCost(ID(i, a2, b1, b2, c1, c2, d1, d2), memory);
+            cost = minCost(ID(a1, a2, b1, b2, c1, i, d1, d2), memory);
             if (cost >= 0)
             {
-                cost += getSteps(a1, i);
-                if (cost < minCost)
-                    minCost = cost;
+                cost += getSteps(c2, i);
+                if (cost < min)
+                    min = cost;
             }
         }
-        if (i != a1 && !isBlocked(a1, i) && (i < 7 || isMyRoom(i, 0)) && (a1 >= 7 || i >= 7))
+        if (i != d1 && !isBlocked(d1, i, positions) && (i < 7 || isMyRoom(i, 3)) && (d1 >= 7 || i >= 7))
         {
-            cost = minCost(ID(i, a2, b1, b2, c1, c2, d1, d2), memory);
+            cost = minCost(ID(a1, a2, b1, b2, c1, c2, i, d2), memory);
             if (cost >= 0)
             {
-                cost += getSteps(a1, i);
-                if (cost < minCost)
-                    minCost = cost;
+                cost += getSteps(d1, i);
+                if (cost < min)
+                    min = cost;
             }
         }
-        if (i != a1 && !isBlocked(a1, i) && (i < 7 || isMyRoom(i, 0)) && (a1 >= 7 || i >= 7))
+        if (i != d2 && !isBlocked(d2, i, positions) && (i < 7 || isMyRoom(i, 3)) && (d2 >= 7 || i >= 7))
         {
-            cost = minCost(ID(i, a2, b1, b2, c1, c2, d1, d2), memory);
+            cost = minCost(ID(a1, a2, b1, b2, c1, c2, d1, i), memory);
             if (cost >= 0)
             {
-                cost += getSteps(a1, i);
-                if (cost < minCost)
-                    minCost = cost;
+                cost += getSteps(d2, i);
+                if (cost < min)
+                    min = cost;
             }
         }
 
     }
 
-    memory[position] = minCost;
-    return minCost;
+    memory[position] = min;
+    return min;
 }
 
 int hasWon(long position)
@@ -259,14 +258,14 @@ long template(long id, int index)
 
 long normalize(long id)
 {
-    long a1 = template(position, 0),
-        a2 = template(position, 1),
-        b1 = template(position, 2),
-        b2 = template(position, 3),
-        c1 = template(position, 4),
-        c2 = template(position, 5),
-        d1 = template(position, 6),
-        d2 = template(position, 7);
+    long a1 = template(id, 0),
+        a2 = template(id, 1),
+        b1 = template(id, 2),
+        b2 = template(id, 3),
+        c1 = template(id, 4),
+        c2 = template(id, 5),
+        d1 = template(id, 6),
+        d2 = template(id, 7);
     return ID(MIN(a1, a2), MAX(a1, a2),
             MIN(b1, b2), MAX(b1, b2),
             MIN(c1, c2), MAX(c1, c2),
@@ -558,19 +557,19 @@ static int fillBlockingPoints(int start, int end, int *blockingPoints, int block
 }
 int isBlocked(int start, int end, int *others)
 {
-    int blockingPoints[POSITIONS] = {0};
+    int blockingPoints[2*POSITIONS] = {0};
     int blockingCount = 0;
     if (end == start)
         return 0;
     blockingPoints[blockingCount++] = end;
     blockingCount = fillBlockingPoints(start, end, blockingPoints, blockingCount);
-    for (int i = 0; i < POSITIONS; i++)
+    for (int i = 0; i < 8; i++)
     {
         if (i == start)
             // This must be myself
             continue;
         for (int j = 0; j < blockingCount; j++)
-            if (blockingPoints == others[i])
+            if (blockingPoints[j] == others[i])
                 return 1;
     }
     return 0;
@@ -643,7 +642,7 @@ int getSteps(int start, int end)
                 case 10:
                     return 3;
                 case 2:
-                    2;
+                    return 2;
                 case 0:
                 case 1:
                 case 7:
@@ -807,6 +806,6 @@ int getSteps(int start, int end)
             }
             break;
     }
-    return blockingCount;
+    return -1;
 }
 
