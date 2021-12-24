@@ -312,7 +312,7 @@ int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forb
     long currentId2 = id2(pods);
     int index;
     for (index = 0; ids[index] >= 0; index++)
-        if (ids[index] == currentId && ids[index] == currentId2)
+        if (ids[index] == currentId && ids2[index] == currentId2)
             break;
     if (ids[index] >= 0)
         return memory[index];
