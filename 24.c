@@ -46,7 +46,25 @@ long part1(FILE *in)
     int *digits = malloc(MEMORY * sizeof(*digits));
     long *zis = malloc(MEMORY * sizeof(*digits));
     int *ws = malloc(MEMORY * sizeof(*ws));
-    long res = getMax(memory, digits, zis, ws, configs);
+    long res = -1;
+    res = getMax(memory, digits, zis, ws, configs);
+    int digit = DIGITS-1;
+    printf("Config for digit %d is: %d,%d,%d\n", digit, configs[digit].div, configs[digit].add1, configs[digit].add2);
+    /*for (long z = -100000000; z < 100000000; z++)
+        for (int w = 1; w <= 9; w++)
+        {
+            if (labs(getZ(configs, digit, z, w)) < 8)
+                printf("%ld,%d yields %ld\n", z, w, getZ(configs, digit, z, w));
+            //if (isValid(configs, memory, digits, zis, ws, digit, z, w))
+                //printf("%d,%ld,%d is valid!\n", digit, z, w);
+        }*/
+    //1 -> -3 5,-2 5,-1 8
+    /*for (int w = 1; w <= 9; w++)
+    {
+        int z = getZ(configs, 0, 0, w);
+        printf("%d yields %d\n", w, z);
+    }*/
+
     free(memory);
     free(digits);
     free(zis);
@@ -87,13 +105,43 @@ Config *readConfigs(FILE *in, Config *buff)
 
 long getZ(Config *configs, int digit, long zi, int w)
 {
-    long z = zi *
-        // 10 <= add1 <= 15
-        (25 * ((zi % 26 + configs[digit].add1) != w) + 1) /
-        // 26 or 1
-        configs[digit].div +
-        // 5 <= add2 <= 15
-        w + configs[digit].add2 + ((zi % 26 + configs[digit].add1) != w);
+    /*// 10 <= add1 <= 15
+    if (zi % 26 == w - configs[digit].add1)
+        if (configs[digit].div == 26)
+            return zi / 26 +
+                // 5 <= add2 <= 15
+                w + configs[digit].add2;
+        else
+            return zi +
+                // 5 <= add2 <= 15
+                w + configs[digit].add2;
+    else
+        if (configs[digit].div == 26)
+            return zi +
+                // 5 <= add2 <= 15
+                w + configs[digit].add2 + 1;
+        else
+            return zi * 26 +
+                // 5 <= add2 <= 15
+                w + configs[digit].add2 + 1;*/
+    long x = 0, y = 0, z = 0;
+    x *= 0;
+    x += z;
+    x %= 26;
+    z /= configs[digit].div;
+    x += configs[digit].add1;
+    x = x == w;
+    x = x == 0;
+    y *= 0;
+    y += 25;
+    y *= x;
+    y += 1;
+    z *= y;
+    y *= 0;
+    y += w;
+    y += configs[digit].add2;
+    y *= x;
+    z += y;
     return z;
 }
 
@@ -104,7 +152,7 @@ long getMax(int *memory, int *digits, long *zis, int *ws, Config *configs)
     for (int digit = 0; digit < DIGITS; digit++)
     {
         printf("digit=%d (< %d)\n", digit, DIGITS);
-        for (int w = 9; w >= 1; w--)
+        for (int w = MAX_W; w >= 1; w--)
         {
             if (isValid(configs, memory, digits, zis, ws, digit, z, w))
             {
@@ -121,10 +169,34 @@ long getMax(int *memory, int *digits, long *zis, int *ws, Config *configs)
 int isValid(Config *configs, int *memory, int *digits, long *zis, int *ws,
         int digit, long zi, int w)
 {
+    if (digit == DIGITS)
+        return zi == 0;
+    /*if (labs(zi) > 100000 && digit >= DIGITS-5)
+        return 0;
+    else*/
+    /*{
+        if (digit == DIGITS-1)
+            return zi == -17 + (9-w);
+        else if (digit == DIGITS-2)
+            return zi <= -19 && zi >= -35 &&
+                w-1 <= (-19 - zi) &&
+                w-1 >= (-27 - zi);
+        else if (digit == DIGITS-3)
+            return zi <= -29 && zi >= -53 &&
+                w-1 <= (-29 - zi) &&
+                w-1 >= (-45 - zi);
+        else if (digit == DIGITS-4)
+            return zi <= -41 && zi >= -73 &&
+                w-1 <= (-41 - zi) &&
+                w-1 >= (-65 - zi);
+        else if (digit == DIGITS-5)
+            return zi <= -55 && zi >= -95 &&
+                w-1 <= (-55 - zi) &&
+                w-1 >= (-87 - zi);
+    }*/
     //printf("digit=%d\n", digit);
-    int res;
-    /*int i;
-    for (i = 0; memory[i] >= 0; i++)
+    int i = 0;
+    /*for (i = 0; memory[i] >= 0; i++)
     {
         if (i >= MEMORY-1)
             fprintf(stderr, "Overflow\n");
@@ -136,25 +208,23 @@ int isValid(Config *configs, int *memory, int *digits, long *zis, int *ws,
     long z = getZ(configs, digit, zi, w);
     if (digit == DIGITS-1)
     {
-        //memory[i] = z == 0;
-        res = z == 0;
-        if (z == 0)
-            printf("%d,%ld,%d is valid!\n", digit, zi, w);
+        memory[i] = z == 0;
     }
     else
     {
         int w2;
         for (w2 = 1; w2 <= MAX_W; w2++)
             if (isValid(configs, memory, digits, zis, ws, digit+1, z, w2))
+            {
+                //printf("Valid for %d: %d\n", digit, w2);
                 break;
-        res = w2 <= MAX_W;
-        //memory[i] = w2 <= MAX_W;
+            }
+        memory[i] = w2 <= MAX_W;
     }
     //printf("Now digit=%d\n", digit);
-    //digits[i] = digit;
-    //zis[i] = zi;
-    //ws[i] = w;
-    //return memory[i];
-    return res;
+    digits[i] = digit;
+    zis[i] = zi;
+    ws[i] = w;
+    return memory[i];
 }
 
