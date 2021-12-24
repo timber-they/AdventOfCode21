@@ -14,7 +14,8 @@
 #define POP1 2
 #define POP2 4
 #define HALLWAY 11
-#define MEMORY 1000000
+#define MEMORY 100000000
+#define MAX_MOVES 2
 
 int POP;
 int POSITIONS;
@@ -28,7 +29,7 @@ void fillPods(FILE *in, int *pods);
 void fillPods2(FILE *in, int *pods);
 long id(int *pods);
 long id2(int *pods);
-int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forbiddenStopper, int depth);
+int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forbiddenStopper, int depth, int currentMin, int *moves);
 int hasWon(int *pods);
 void print(int *pods);
 int isDone(int type, int pop, int *pods);
@@ -64,11 +65,12 @@ int part1(FILE *in)
     int forbiddenStopper[POSITIONS1] = {0};
     for (int i = 2; i <= 8; i+=2)
         forbiddenStopper[i] = 1;
+    int moves[TYPES*POP1] = {0};
 
     fillCosts(costs);
     fillPods(in, pods);
 
-    int res = minCost(pods, ids, ids2, memory, costs, forbiddenStopper, 0);
+    int res = minCost(pods, ids, ids2, memory, costs, forbiddenStopper, 0, 100000, moves);
     free(memory);
     free(ids);
     free(ids2);
@@ -93,11 +95,12 @@ int part2(FILE *in)
     int forbiddenStopper[POSITIONS2] = {0};
     for (int i = 2; i <= 8; i+=2)
         forbiddenStopper[i] = 1;
+    int moves[TYPES*POP2] = {0};
 
     fillCosts2(costs);
     fillPods2(in, pods);
 
-    int res = minCost(pods, ids, ids2, memory, costs, forbiddenStopper, 0);
+    int res = minCost(pods, ids, ids2, memory, costs, forbiddenStopper, 0, 1000000, moves);
     free(memory);
     free(ids);
     free(ids2);
@@ -300,7 +303,7 @@ long id2(int *pods)
  *     #23##24##25##26#
  *     ################
  */
-int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forbiddenStopper, int depth)
+int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forbiddenStopper, int depth, int currentMin, int *moves)
 {
     if (depth > 240)
         return -1;
@@ -321,6 +324,7 @@ int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forb
     ids2[index] = currentId2;
     memory[index] = -1;
     // Infinity
+    int complete = 1;
     int min = 1<<30;
 
     // Move in
@@ -330,6 +334,12 @@ int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forb
             // Can't move in what's not in the hallway
             if (POD(pods, type, pop) >= HALLWAY)
                 continue;
+            // Already moved twice
+            if (POD(moves, type, pop) >= MAX_MOVES)
+            {
+                complete = -1;
+                continue;
+            }
             int start = POD(pods, type, pop);
             for (int dest = HALLWAY; dest < POSITIONS; dest++)
             {
@@ -347,30 +357,50 @@ int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forb
                 int *mem = calloc(POSITIONS, sizeof(*mem));
                 int cost = getCost(type, pods, start, dest, mem, costs);
                 free(mem);
+                if (cost >= currentMin)
+                {
+                    complete = 0;
+                    continue;
+                }
                 if (cost >= 0 && cost < min)
                 {
-                    int new = minCost(pods, ids, ids2, memory, costs, forbiddenStopper, depth+1);
+                    POD(moves, type, pop)++;
+                    int new = minCost(pods, ids, ids2, memory, costs, forbiddenStopper, depth+1, currentMin, moves);
+                    POD(moves, type, pop)--;
                     int total = cost + new;
-                    if (new >= 0 && total < min)
+                    if (new >= 0 && total <= min)
                     {
                         //printf("cost from %d to %d for type %d is: %d, yielding a total %d\n", start, dest, type, cost, total);
                         min = total;
+                        if (isDone(type, pop, pods))
+                        {
+                            // If we completed a room, that's the best we can do
+                            POD(pods, type, pop) = start;
+                            memory[index] = min;
+                            return min;
+                        }
                     }
                 }
                 POD(pods, type, pop) = start;
             }
         }
 
-    // Remove
+    // Move out
     for (int type = TYPES-1; type >= 0; type--)
         for (int pop = POP-1; pop >= 0; pop--)
         {
-            // Can't remove what's not in its room
+            // Can't move out what's not in its room
             if (POD(pods,type,pop) < HALLWAY)
                 continue;
-            // Won't remove what's done
+            // Won't move out what's done
             if (isDone(type, pop, pods))
                 continue;
+            // Already moved twice
+            if (POD(moves, type, pop) >= MAX_MOVES)
+            {
+                complete = -1;
+                continue;
+            }
             int start = POD(pods, type, pop);
             for (int dest = 0; dest < HALLWAY; dest++)
             {
@@ -398,9 +428,16 @@ int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forb
                 //if (start == 26)
                     //printf("Cost to %d is %d\n", dest, cost);
                 free(mem);
+                if (cost >= currentMin)
+                {
+                    complete = 0;
+                    continue;
+                }
                 if (cost >= 0 && cost < min)
                 {
-                    int new = minCost(pods, ids, ids2, memory, costs, forbiddenStopper, depth+1);
+                    POD(moves, type, pop)++;
+                    int new = minCost(pods, ids, ids2, memory, costs, forbiddenStopper, depth+1, currentMin, moves);
+                    POD(moves, type, pop)--;
                     int total = cost + new;
                     if (new >= 0 && total < min)
                     {
@@ -412,12 +449,14 @@ int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forb
             }
         }
 
-    //if (min <= 20)
-    //{
-        //printf("Final min: %d\n", min);
-        //print(pods);
-    //}
-    memory[index] = min;
+    if (complete > 0 || (!complete && min < 1<<29))
+        memory[index] = min;
+    else
+    {
+        ids[index] = -1;
+        ids2[index] = -1;
+        memory[index] = -1;
+    }
     return min;
 }
 
