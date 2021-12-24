@@ -161,7 +161,7 @@ void fillCosts2(int *costs)
         int val = 1;
         for (int j = 0; j < i; j++)
             val *= 10;
-        for (int j = 15; j < 22; j++)
+        for (int j = 15; j <= 22; j++)
         {
             COST(costs, i, j, j+4) = val;
             COST(costs, i, j+4, j) = val;
@@ -252,6 +252,31 @@ void fillPods2(FILE *in, int *pods)
         if (j == POP)
             fprintf(stderr, "Couldn't fit pod\n");
     }
+/*
+ * ########################
+ * #0 1 2 3 4 5 6 7 8 9 10#
+ * #####11##12##13##14#####
+ *     #15##16##17##18#
+ *     #19##20##21##22#
+ *     #23##24##25##26#
+ *     ################
+ */
+    /*POD(pods, 0, 0) = 9;
+    POD(pods, 0, 1) = 0;
+    POD(pods, 0, 2) = 1;
+    POD(pods, 0, 3) = 23;
+    POD(pods, 1, 0) = 11;
+    POD(pods, 1, 1) = 16;
+    POD(pods, 1, 2) = 20;
+    POD(pods, 1, 3) = 24;
+    POD(pods, 2, 0) = 13;
+    POD(pods, 2, 1) = 17;
+    POD(pods, 2, 2) = 21;
+    POD(pods, 2, 3) = 25;
+    POD(pods, 3, 0) = 10;
+    POD(pods, 3, 1) = 19;
+    POD(pods, 3, 2) = 15;
+    POD(pods, 3, 3) = 3;*/
 }
 
 long id(int *pods)
@@ -337,7 +362,7 @@ int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forb
             // Already moved twice
             if (POD(moves, type, pop) >= MAX_MOVES)
             {
-                complete = -1;
+                //complete = -1;
                 continue;
             }
             int start = POD(pods, type, pop);
@@ -354,6 +379,12 @@ int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forb
                 if (i != TYPES*POP)
                     continue;
                 POD(pods, type, pop) = dest;
+                // Only move in, if it's done
+                if (!isDone(type, pop, pods))
+                {
+                    POD(pods, type, pop) = start;
+                    continue;
+                }
                 int *mem = calloc(POSITIONS, sizeof(*mem));
                 int cost = getCost(type, pods, start, dest, mem, costs);
                 free(mem);
@@ -398,7 +429,7 @@ int minCost(int *pods, long *ids, long *ids2, int *memory, int *costs, int *forb
             // Already moved twice
             if (POD(moves, type, pop) >= MAX_MOVES)
             {
-                complete = -1;
+                //complete = -1;
                 continue;
             }
             int start = POD(pods, type, pop);
@@ -509,12 +540,23 @@ void print(int *pods)
     printf("#\n  #########\n");
 }
 
+/*
+ * ########################
+ * #0 1 2 3 4 5 6 7 8 9 10#
+ * #####11##12##13##14#####
+ *     #15##16##17##18#
+ *     #19##20##21##22#
+ *     #23##24##25##26#
+ *     ################
+ */
 int isDone(int type, int pop, int *pods)
 {
     int this = POD(pods, type, pop);
     int room = (this - HALLWAY) % TYPES;
     if (room != type)
         return 0;
+    if (this >= 23)
+        return 1;
     for (int i = this+TYPES; i < POSITIONS; i+=TYPES)
     {
         int j;
@@ -526,7 +568,11 @@ int isDone(int type, int pop, int *pods)
                 break;
         }
         if (j == POP)
+        {
+            //printf("%d is not done:\n", this);
+            //print(pods);
             return 0;
+        }
     }
     //printf("%d is done, from\n", this);
     //print(pods);
@@ -534,15 +580,46 @@ int isDone(int type, int pop, int *pods)
     return 1;
 }
 
+/*
+ * ########################
+ * #0 1 2 3 4 5 6 7 8 9 10#
+ * #####11##12##13##14#####
+ *     #15##16##17##18#
+ *     #19##20##21##22#
+ *     #23##24##25##26#
+ *     ################
+ */
+//int debugging = 0;
 int getCost(int type, int *pods, int start, int end, int *mem, int *costs)
 {
+    //if (debugging)
+    //{
+        //printf("Calculating cost from %d to %d\n", start, end);
+        //getchar();
+    //}
     if (start == end)
+    {
+        //if (debugging)
+            //printf("%d->%d: At destination!\n", start, end);
         return 0;
+    }
     if (mem[start])
+    {
+        //if (debugging)
+            //printf("%d->%d: In memory (%d)\n", start, end, mem[start]);
         return mem[start];
+    }
     for (int i = 0; i < POP*TYPES; i++)
         if (pods[i] == start)
+        {
+            //printf("%d->%d: Someone (%d) is already here!\n", start, end, i);
             return -1;
+        }
+    //if (start == 3 && end == 26)
+    //{
+        //debugging = 1;
+        //printf("Starting to debug!\n");
+    //}
     mem[start] = -1;
     int min = 1<<30;
     for (int i = 0; i < POSITIONS; i++)
@@ -560,6 +637,14 @@ int getCost(int type, int *pods, int start, int end, int *mem, int *costs)
         }
     }
     mem[start] = min;
+    //if (start == 3 && end == 26)
+    //{
+        //printf("%d->%d: Here I go (%d)!\n", start, end, min);
+        //print(pods);
+        //debugging = 0;
+    //}
+    //if (debugging)
+        //printf("%d->%d: min=%d\n", start, end, min);
     return min != 1<<30 ? min : -1;
 }
 
