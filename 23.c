@@ -50,7 +50,6 @@ int part1(FILE *in)
     POP = POP1;
     POSITIONS = POSITIONS1;
     int costs[TYPES*POSITIONS1*POSITIONS1] = {0};
-    // 2 because stopped is either 0 or 1
     int pods[TYPES*POP1];
     for (int i = 0; i < TYPES*POP; i++)
         pods[i] = -1;
@@ -76,7 +75,6 @@ int part2(FILE *in)
     POP = POP2;
     POSITIONS = POSITIONS2;
     int costs[TYPES*POSITIONS2*POSITIONS2] = {0};
-    // 2 because stopped is either 0 or 1
     int pods[TYPES*POP2];
     for (int i = 0; i < TYPES*POP; i++)
         pods[i] = -1;
@@ -272,6 +270,8 @@ long id(int *pods)
 
 int minCost(int *pods, long *ids, int *memory, int *costs, int *forbiddenStopper)
 {
+    //print(pods);
+    //getchar();
     if (hasWon(pods))
         return 0;
     long currentId = id(pods);
@@ -403,9 +403,13 @@ void print(int *pods)
     printf("#\n##");
     for (int i = 0; i < TYPES; i++)
         printf("#%c", map[i+HALLWAY]);
-    printf("###\n  ");
-    for (int i = 0; i < TYPES; i++)
-        printf("#%c", map[i+TYPES+HALLWAY]);
+    printf("##");
+    for (int j = 1; j < POP; j++)
+    {
+        printf("#\n  ");
+        for (int i = 0; i < TYPES; i++)
+            printf("#%c", map[i+j*TYPES+HALLWAY]);
+    }
     printf("#\n  #########\n");
 }
 
