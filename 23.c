@@ -8,19 +8,26 @@
 #define REQUIRES(map,type,to,stopped) ((map)[(type) + (to)*TYPES + (stopped)*TYPES*POSITIONS])
 #define POD(map,type,pop) ((map)[(type) + pop*TYPES])
 
-#define POSITIONS 19
+#define POSITIONS1 19
+#define POSITIONS2 27
 #define TYPES 4
-#define POP 2
+#define POP1 2
+#define POP2 4
 #define HALLWAY 11
 #define MEMORY 1000000
+
+int POP;
+int POSITIONS;
 
 int part1(FILE *in);
 int part2(FILE *in);
 void fillCosts(int *costs);
+void fillCosts2(int *costs);
 void fillRequires(int *requires);
 void fillPods(FILE *in, int *pods);
+void fillPods2(FILE *in, int *pods);
 long id(int *pods);
-int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *forbiddenStopper);
+int minCost(int *pods, long *ids, int *memory, int *costs, int *forbiddenStopper);
 int hasWon(int *pods);
 void print(int *pods);
 int isDone(int type, int pop, int *pods);
@@ -30,8 +37,8 @@ int main()
 {
     FILE *in = fopen("in23", "r");
 
-    printf("Part1: %d\n", part1(in));
-    rewind(in);
+    //printf("Part1: %d\n", part1(in));
+    //rewind(in);
     printf("Part2: %d\n", part2(in));
 
     fclose(in);
@@ -40,58 +47,25 @@ int main()
 
 int part1(FILE *in)
 {
-    int costs[TYPES*POSITIONS*POSITIONS] = {0};
+    POP = POP1;
+    POSITIONS = POSITIONS1;
+    int costs[TYPES*POSITIONS1*POSITIONS1] = {0};
     // 2 because stopped is either 0 or 1
-    int pods[TYPES*POP];
+    int pods[TYPES*POP1];
     for (int i = 0; i < TYPES*POP; i++)
         pods[i] = -1;
     long *ids = malloc(MEMORY * sizeof(*ids));
     for (int i = 0; i < MEMORY; i++)
         ids[i] = -1;
     int *memory = calloc(MEMORY, sizeof(*memory));
-    int forbiddenStopper[POSITIONS] = {0};
+    int forbiddenStopper[POSITIONS1] = {0};
     for (int i = 2; i <= 8; i+=2)
         forbiddenStopper[i] = 1;
 
     fillCosts(costs);
     fillPods(in, pods);
 
-/*
- * ########################
- * #0 1 2 3 4 5 6 7 8 9 10#
- * #####11##12##13##14#####
- *     #15##16##17##18#
- *     ################
- */
-    /*
-     * This is this:
-     * #############
-     * #...B.......#
-     * ###B#.#C#D###
-     *   #A#D#C#A#
-     *   #########
-     */
-    /*POD(pods, 0, 0) = 18;
-    POD(pods, 0, 1) = 15;
-    POD(pods, 1, 0) = 11;
-    POD(pods, 1, 1) = 3;
-    //POD(pods, 1, 1) = 16;
-    POD(pods, 2, 0) = 13;
-    POD(pods, 2, 1) = 17;
-    POD(pods, 3, 0) = 14;
-    POD(pods, 3, 1) = 16;
-    //POD(pods, 3, 1) = 5;*/
-    /*
-     * ...and should yield this:
-     * #############
-     * #.....D.....#
-     * ###B#.#C#D###
-     *   #A#B#C#A#
-     *   #########
-     */
-    // This should yield 12081
-
-    int res = minCost(pods, ids, memory, costs, 100000000, forbiddenStopper);
+    int res = minCost(pods, ids, memory, costs, forbiddenStopper);
     free(memory);
     free(ids);
     return res;
@@ -99,7 +73,28 @@ int part1(FILE *in)
 
 int part2(FILE *in)
 {
-    return -2;
+    POP = POP2;
+    POSITIONS = POSITIONS2;
+    int costs[TYPES*POSITIONS2*POSITIONS2] = {0};
+    // 2 because stopped is either 0 or 1
+    int pods[TYPES*POP2];
+    for (int i = 0; i < TYPES*POP; i++)
+        pods[i] = -1;
+    long *ids = malloc(MEMORY * sizeof(*ids));
+    for (int i = 0; i < MEMORY; i++)
+        ids[i] = -1;
+    int *memory = calloc(MEMORY, sizeof(*memory));
+    int forbiddenStopper[POSITIONS2] = {0};
+    for (int i = 2; i <= 8; i+=2)
+        forbiddenStopper[i] = 1;
+
+    fillCosts2(costs);
+    fillPods2(in, pods);
+
+    int res = minCost(pods, ids, memory, costs, forbiddenStopper);
+    free(memory);
+    free(ids);
+    return res;
 }
 
 /*
@@ -146,6 +141,31 @@ void fillCosts(int *costs)
     COST(costs,3,8,14) = 1000;
 }
 
+/*
+ * ########################
+ * #0 1 2 3 4 5 6 7 8 9 10#
+ * #####11##12##13##14#####
+ *     #15##16##17##18#
+ *     #19##20##21##22#
+ *     #23##24##25##26#
+ *     ################
+ */
+void fillCosts2(int *costs)
+{
+    fillCosts(costs);
+    for (int i = 0; i < TYPES; i++)
+    {
+        int val = 1;
+        for (int j = 0; j < i; j++)
+            val *= 10;
+        for (int j = 15; j < 22; j++)
+        {
+            COST(costs, i, j, j+4) = val;
+            COST(costs, i, j+4, j) = val;
+        }
+    }
+}
+
 // Move is required, if the pod moved in the last move
 void fillRequires(int *requires)
 {
@@ -166,6 +186,8 @@ void fillRequires(int *requires)
  * #0 1 2 3 4 5 6 7 8 9 10#
  * #####11##12##13##14#####
  *     #15##16##17##18#
+ *     #19##20##21##22#
+ *     #23##24##25##26#
  *     ################
  */
 void fillPods(FILE *in, int *pods)
@@ -173,11 +195,45 @@ void fillPods(FILE *in, int *pods)
     // First two lines are discarded
     fscanf(in, "%*s\n");
     fscanf(in, "%*s\n");
-    char roomPods[POP*TYPES];
+    char roomPods[POP1*TYPES];
     fscanf(in, "###%c#%c#%c#%c###\n  #%c#%c#%c#%c#\n",
             roomPods+0, roomPods+1, roomPods+2, roomPods+3,
-            roomPods+4, roomPods+5, roomPods+6, roomPods+7) == POP*TYPES ||
+            roomPods+4, roomPods+5, roomPods+6, roomPods+7) == POP1*TYPES ||
         fprintf(stderr, "Couldn't read pods\n");
+    // Normalize
+    for (int i = 0; i < POP*TYPES; i++)
+        roomPods[i] -= 'A';
+    for (int i = 0; i < POP*TYPES; i++)
+    {
+        int j;
+        for (j = 0; j < POP; j++)
+            if (POD(pods,roomPods[i],j) < 0)
+            {
+                POD(pods,roomPods[i], j) = HALLWAY+i;
+                break;
+            }
+        if (j == POP)
+            fprintf(stderr, "Couldn't fit pod\n");
+    }
+}
+void fillPods2(FILE *in, int *pods)
+{
+    // First two lines are discarded
+    fscanf(in, "%*s\n");
+    fscanf(in, "%*s\n");
+    char roomPods[POP2*TYPES];
+    fscanf(in, "###%c#%c#%c#%c###\n  #%c#%c#%c#%c#\n",
+            roomPods+0, roomPods+1, roomPods+2, roomPods+3,
+            roomPods+12, roomPods+13, roomPods+14, roomPods+15) == POP1*TYPES ||
+        fprintf(stderr, "Couldn't read pods\n");
+    roomPods[4] = 'D';
+    roomPods[5] = 'C';
+    roomPods[6] = 'B';
+    roomPods[7] = 'A';
+    roomPods[8] = 'D';
+    roomPods[9] = 'B';
+    roomPods[10] = 'A';
+    roomPods[11] = 'C';
     // Normalize
     for (int i = 0; i < POP*TYPES; i++)
         roomPods[i] -= 'A';
@@ -214,10 +270,8 @@ long id(int *pods)
     return res;
 }
 
-int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *forbiddenStopper)
+int minCost(int *pods, long *ids, int *memory, int *costs, int *forbiddenStopper)
 {
-    //if (currentMin < 0)
-        //return -1;
     if (hasWon(pods))
         return 0;
     long currentId = id(pods);
@@ -232,33 +286,7 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
     memory[index] = -1;
     // Infinity
     int min = 1<<30;
-    if (currentId == 14284319581L)
-    {
-        //printf("ACTION (%d)\n", currentMin);
-        //print(pods);
-        //getchar();
-    }
-    //printf("Got currently %d indices\n", index);
 
-    //printf("Iterating:\n");
-    //print(pods);
-    //getchar();
-
-    /*
-     * This is this:
-     * #############
-     * #...B.......#
-     * ###B#.#C#D###
-     *   #A#D#C#A#
-     *   #########
-     */
-/*
- * ########################
- * #0 1 2 3 4 5 6 7 8 9 10#
- * #####11##12##13##14#####
- *     #15##16##17##18#
- *     ################
- */
     // Move in
     for (int type = 0; type < TYPES; type++)
         for (int pop = 0; pop < POP; pop++)
@@ -280,18 +308,16 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
                 if (i != TYPES*POP)
                     continue;
                 POD(pods, type, pop) = dest;
-                int mem[POSITIONS] = {0};
+                int *mem = calloc(POSITIONS, sizeof(*mem));
                 int cost = getCost(type, pods, start, dest, mem, costs);
-                if (cost >= 0 && cost < min/* && cost < currentMin*/)
+                free(mem);
+                if (cost >= 0 && cost < min)
                 {
                     //printf("Moving in %d,%d\n", type, pop);
-                    int new = minCost(pods, ids, memory, costs, currentMin-cost, forbiddenStopper);
+                    int new = minCost(pods, ids, memory, costs, forbiddenStopper);
                     int total = cost + new;
                     if (new >= 0 && total < min)
-                    {
                         min = total;
-                        currentMin = min;
-                    }
                 }
                 POD(pods, type, pop) = start;
             }
@@ -324,40 +350,20 @@ int minCost(int *pods, long *ids, int *memory, int *costs, int currentMin, int *
                 if (i != TYPES*POP)
                     continue;
                 POD(pods, type, pop) = dest;
-                int mem[POSITIONS] = {0};
+                int *mem = calloc(POSITIONS, sizeof(*mem));
                 int cost = getCost(type, pods, start, dest, mem, costs);
-                if (cost >= 0 && cost < min/* && cost < currentMin*/)
+                free(mem);
+                if (cost >= 0 && cost < min)
                 {
-                    //printf("Removing %d,%d\n", type, pop);
-                    if (start == 16 && dest == 5)
-                    {
-                        //printf("Cost for this is: %d\n", cost);
-                        //print(pods);
-                        //getchar();
-                    }
-                    int new = minCost(pods, ids, memory, costs, currentMin-cost, forbiddenStopper);
+                    int new = minCost(pods, ids, memory, costs, forbiddenStopper);
                     int total = cost + new;
                     if (new >= 0 && total < min)
-                    {
                         min = total;
-                        currentMin = min;
-                    }
                 }
                 POD(pods, type, pop) = start;
             }
         }
 
-    if (min < 100000)
-    {
-        //printf("Iterated: (min=%d)\n", min);
-        //print(pods);
-    }
-
-    if (currentId == 14284319581L)
-    {
-        //printf("Yielded %d\n", min);
-        //getchar();
-    }
     memory[index] = min;
     return min;
 }
@@ -373,8 +379,11 @@ int hasWon(int *pods)
 {
     for (int i = 0; i < TYPES; i++)
         for (int j = 0; j < POP; j++)
-            if (POD(pods,i,j) != HALLWAY+i && POD(pods,i,j) != HALLWAY+TYPES+i)
+        {
+            int room = (POD(pods, i, j) - HALLWAY) % TYPES;
+            if (room != i)
                 return 0;
+        }
     return 1;
 }
 
@@ -403,11 +412,23 @@ void print(int *pods)
 int isDone(int type, int pop, int *pods)
 {
     int this = POD(pods, type, pop);
-    int other = POD(pods, type, (pop+1)%POP);
-    int res = this == HALLWAY + TYPES + type ||
-        (other == HALLWAY + TYPES + type && this == HALLWAY + type);
-    //printf("Is %d,%d (%d) done? %d!\n", type, pop, this, res);
-    return res;
+    int room = (this - HALLWAY) % TYPES;
+    if (room != type)
+        return 0;
+    for (int i = this+TYPES; i < POSITIONS; i+=TYPES)
+    {
+        int j;
+        for (j = 0; j < POP; j++)
+        {
+            if (j == pop)
+                continue;
+            if (POD(pods, type, j) == i)
+                break;
+        }
+        if (j == POP)
+            return 0;
+    }
+    return 1;
 }
 
 int getCost(int type, int *pods, int start, int end, int *mem, int *costs)
