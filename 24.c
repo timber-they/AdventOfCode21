@@ -16,13 +16,24 @@ typedef struct
 } Config;
 
 long part1(FILE *in);
-int part2(FILE *in);
+long part2(FILE *in);
 Config *readConfigs(FILE *in, Config *buff);
-long getMax(int *memory, int *digits, long *zis, int *ws, Config *configs);
 long getZ(Config *configs, int digit, long zi, int w);
-int isValid(Config *configs, int *memory, int *digits, long *zis, int *ws,
-        int digit, long zi, int w);
-long getModulo(int digit);
+long invert(long l);
+long getLong();
+long getFinalZ(Config *configs, long modelNumber);
+long getBestLong(Config *configs);
+long getLowestLong(Config *configs);
+void reduce(int *last, Config *configs);
+void increase(int *last, Config *configs);
+
+/*
+ * 0 -> w0+14                           w0+14
+ *   -> w1+26*w0+370                    w1+26*d0+6
+ *   -> w2+26*w1+26^2*w0+9626           w2+26*d1+6
+ *   -> w3+26*w2+26^2*w1+26^3*w0+250289 w3+26*d2+13
+ *   ->                                 w4+d3-5
+ */
 
 int main()
 {
@@ -30,7 +41,7 @@ int main()
 
     printf("Part1: %ld\n", part1(in));
     rewind(in);
-    printf("Part2: %d\n", part2(in));
+    printf("Part2: %ld\n", part2(in));
 
     fclose(in);
     return 0;
@@ -40,41 +51,14 @@ long part1(FILE *in)
 {
     Config buff[DIGITS] = {0};
     Config *configs = readConfigs(in, buff);
-    int *memory = malloc(MEMORY * sizeof(*memory));
-    for (int i = 0; i < MEMORY; i++)
-        memory[i] = -1;
-    int *digits = malloc(MEMORY * sizeof(*digits));
-    long *zis = malloc(MEMORY * sizeof(*digits));
-    int *ws = malloc(MEMORY * sizeof(*ws));
-    long res = -1;
-    res = getMax(memory, digits, zis, ws, configs);
-    int digit = DIGITS-1;
-    printf("Config for digit %d is: %d,%d,%d\n", digit, configs[digit].div, configs[digit].add1, configs[digit].add2);
-    /*for (long z = -100000000; z < 100000000; z++)
-        for (int w = 1; w <= 9; w++)
-        {
-            if (labs(getZ(configs, digit, z, w)) < 8)
-                printf("%ld,%d yields %ld\n", z, w, getZ(configs, digit, z, w));
-            //if (isValid(configs, memory, digits, zis, ws, digit, z, w))
-                //printf("%d,%ld,%d is valid!\n", digit, z, w);
-        }*/
-    //1 -> -3 5,-2 5,-1 8
-    /*for (int w = 1; w <= 9; w++)
-    {
-        int z = getZ(configs, 0, 0, w);
-        printf("%d yields %d\n", w, z);
-    }*/
-
-    free(memory);
-    free(digits);
-    free(zis);
-    free(ws);
-    return res;
+    return getBestLong(configs);
 }
 
-int part2(FILE *in)
+long part2(FILE *in)
 {
-    return -2;
+    Config buff[DIGITS] = {0};
+    Config *configs = readConfigs(in, buff);
+    return getLowestLong(configs);
 }
 
 Config *readConfigs(FILE *in, Config *buff)
@@ -105,26 +89,7 @@ Config *readConfigs(FILE *in, Config *buff)
 
 long getZ(Config *configs, int digit, long zi, int w)
 {
-    /*// 10 <= add1 <= 15
-    if (zi % 26 == w - configs[digit].add1)
-        if (configs[digit].div == 26)
-            return zi / 26 +
-                // 5 <= add2 <= 15
-                w + configs[digit].add2;
-        else
-            return zi +
-                // 5 <= add2 <= 15
-                w + configs[digit].add2;
-    else
-        if (configs[digit].div == 26)
-            return zi +
-                // 5 <= add2 <= 15
-                w + configs[digit].add2 + 1;
-        else
-            return zi * 26 +
-                // 5 <= add2 <= 15
-                w + configs[digit].add2 + 1;*/
-    long x = 0, y = 0, z = 0;
+    long x = 0, y = 0, z = zi;
     x *= 0;
     x += z;
     x %= 26;
@@ -145,86 +110,136 @@ long getZ(Config *configs, int digit, long zi, int w)
     return z;
 }
 
-long getMax(int *memory, int *digits, long *zis, int *ws, Config *configs)
+long invert(long l)
 {
     long res = 0;
-    long z = 0;
-    for (int digit = 0; digit < DIGITS; digit++)
+    while (l != 0)
     {
-        printf("digit=%d (< %d)\n", digit, DIGITS);
-        for (int w = MAX_W; w >= 1; w--)
-        {
-            if (isValid(configs, memory, digits, zis, ws, digit, z, w))
-            {
-                z = getZ(configs, digit, z, w);
-                res = res * 10 + w;
-                printf("Found w=%d for digit=%d\n", w, digit);
-                break;
-            }
-        }
+        res = res * 10 + l % 10;
+        l /= 10;
     }
     return res;
 }
 
-int isValid(Config *configs, int *memory, int *digits, long *zis, int *ws,
-        int digit, long zi, int w)
+long getLong()
 {
-    if (digit == DIGITS)
-        return zi == 0;
-    /*if (labs(zi) > 100000 && digit >= DIGITS-5)
-        return 0;
-    else*/
-    /*{
-        if (digit == DIGITS-1)
-            return zi == -17 + (9-w);
-        else if (digit == DIGITS-2)
-            return zi <= -19 && zi >= -35 &&
-                w-1 <= (-19 - zi) &&
-                w-1 >= (-27 - zi);
-        else if (digit == DIGITS-3)
-            return zi <= -29 && zi >= -53 &&
-                w-1 <= (-29 - zi) &&
-                w-1 >= (-45 - zi);
-        else if (digit == DIGITS-4)
-            return zi <= -41 && zi >= -73 &&
-                w-1 <= (-41 - zi) &&
-                w-1 >= (-65 - zi);
-        else if (digit == DIGITS-5)
-            return zi <= -55 && zi >= -95 &&
-                w-1 <= (-55 - zi) &&
-                w-1 >= (-87 - zi);
-    }*/
-    //printf("digit=%d\n", digit);
-    int i = 0;
-    /*for (i = 0; memory[i] >= 0; i++)
+    long res;
+    printf("Scanning...\n");
+    scanf("%ld", &res) == 1 ||
+        fprintf(stderr, "Couldn't read input\n");
+    printf("Read %ld\n", res);
+    res = invert(res);
+    printf("Converted %ld\n", res);
+    return res;
+}
+
+long getFinalZ(Config *configs, long modelNumber)
+{
+    long z = 0;
+    //printf("%ld", z);
+    for (int digit = 0; digit < DIGITS; digit++)
     {
-        if (i >= MEMORY-1)
-            fprintf(stderr, "Overflow\n");
-        if (digits[i] == digit && zis[i] == zi && ws[i] == w)
-            return memory[i];
-    }*/
-    //printf("New: %d,%ld,%d\n", digit, zi, w);
-    //getchar();
-    long z = getZ(configs, digit, zi, w);
-    if (digit == DIGITS-1)
-    {
-        memory[i] = z == 0;
+        //printf("Digit %d is %ld\n", digit, modelNumber % 10);
+        z = getZ(configs, digit, z, modelNumber % 10);
+        if (modelNumber == 0)
+            fprintf(stderr, "Model number too low\n");
+        modelNumber /= 10;
+        //printf(" -> %ld (%ld)", z, z%26);
     }
-    else
+    if (modelNumber > 0)
+        fprintf(stderr, "Model number too high\n");
+    return z;
+}
+
+long getBestLong(Config *configs)
+{
+    int last[DIGITS];
+    for (int i = 0; i < DIGITS; i++)
+        last[i] = 9;
+    while (1)
     {
-        int w2;
-        for (w2 = 1; w2 <= MAX_W; w2++)
-            if (isValid(configs, memory, digits, zis, ws, digit+1, z, w2))
+        long z = 0;
+        long l = 0;
+        reduce(last, configs);
+        for (int i = 0; i < DIGITS; i++)
+        {
+            if (configs[i].div == 26)
             {
-                //printf("Valid for %d: %d\n", digit, w2);
-                break;
+                last[i] = z % 26 + configs[i].add1;
+                if (last[i] <= 0 || last[i] > 9)
+                    goto naah;
             }
-        memory[i] = w2 <= MAX_W;
+            if (last[i] <= 0 || last[i] > 9)
+                fprintf(stderr, "%d is %d!\n", i, last[i]);
+            l = l * 10 + last[i];
+            z = getZ(configs, i, z, last[i]);
+        }
+        if (z == 0)
+            return l;
+naah:;
     }
-    //printf("Now digit=%d\n", digit);
-    digits[i] = digit;
-    zis[i] = zi;
-    ws[i] = w;
-    return memory[i];
+}
+
+long getLowestLong(Config *configs)
+{
+    int last[DIGITS];
+    for (int i = 0; i < DIGITS; i++)
+        last[i] = 1;
+    while (1)
+    {
+        long z = 0;
+        long l = 0;
+        increase(last, configs);
+        for (int i = 0; i < DIGITS; i++)
+        {
+            if (configs[i].div == 26)
+            {
+                last[i] = z % 26 + configs[i].add1;
+                if (last[i] <= 0 || last[i] > 9)
+                    goto naah;
+            }
+            if (last[i] <= 0 || last[i] > 9)
+                fprintf(stderr, "%d is %d!\n", i, last[i]);
+            l = l * 10 + last[i];
+            z = getZ(configs, i, z, last[i]);
+        }
+        if (z == 0)
+            return l;
+naah:;
+    }
+}
+
+void reduce(int *last, Config *configs)
+{
+    for (int i = DIGITS-1; i >= 0; i--)
+    {
+        if (configs[i].div == 26)
+            continue;
+        if (last[i] == 1)
+        {
+            last[i] = 9;
+            continue;
+        }
+        last[i]--;
+        return;
+    }
+    fprintf(stderr, "Can't reduce anymore!\n");
+}
+
+void increase(int *last, Config *configs)
+{
+    for (int i = DIGITS-1; i >= 0; i--)
+    {
+        if (configs[i].div == 26)
+            continue;
+        if (last[i] == 9)
+        {
+            last[i] = 1;
+            continue;
+        }
+        last[i]++;
+        return;
+    }
+    fprintf(stderr, "Can't reduce anymore!\n");
 }
 
